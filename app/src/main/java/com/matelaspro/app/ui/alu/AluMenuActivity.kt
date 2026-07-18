@@ -2,6 +2,7 @@ package com.matelaspro.app.ui.alu
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.matelaspro.app.databinding.ActivityAluMenuBinding
 
@@ -12,6 +13,7 @@ class AluMenuActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityAluMenuBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        showSkeleton()
         binding.btnBack.setOnClickListener { finish() }
 
         binding.cardListesProduits.setOnClickListener {
@@ -28,6 +30,21 @@ class AluMenuActivity : AppCompatActivity() {
 
         binding.cardDevisEnregistres.setOnClickListener {
             startActivity(Intent(this, AluDevisListActivity::class.java))
+        }
+        hideSkeleton()
+    }
+
+    private fun showSkeleton() {
+        binding.skeleton.root.apply {
+            visibility = View.VISIBLE
+            startShimmer()
+        }
+    }
+
+    private fun hideSkeleton() {
+        binding.skeleton.root.apply {
+            stopShimmer()
+            visibility = View.GONE
         }
     }
 }

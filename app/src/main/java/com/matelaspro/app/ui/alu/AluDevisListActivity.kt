@@ -8,12 +8,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.matelaspro.app.data.entity.AluDevis
+import com.matelaspro.app.MatelasProApp
+import com.matelaspro.app.data.firestore.AluDevisFS
 import com.matelaspro.app.databinding.ActivityAluDevisListBinding
 import com.matelaspro.app.databinding.ItemSavedDevisBinding
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Currency
@@ -22,14 +24,13 @@ import java.util.Locale
 
 class AluDevisListActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAluDevisListBinding
-    private lateinit var viewModel: AluViewModel
     private lateinit var adapter: DevisCardAdapter
+    private val app get() = application as MatelasProApp
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAluDevisListBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        viewModel = ViewModelProvider(this)[AluViewModel::class.java]
 
         binding.btnBack.setOnClickListener { finish() }
 
@@ -39,27 +40,45 @@ class AluDevisListActivity : AppCompatActivity() {
         )
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
+        showSkeleton()
 
-        viewModel.allDevis.observe(this) { devis ->
-            adapter.submitList(devis)
-            val empty = devis.isEmpty()
-            binding.textEmptyState.visibility = if (empty) View.VISIBLE else View.GONE
-            binding.recyclerView.visibility = if (empty) View.GONE else View.VISIBLE
+        lifecycleScope.launch {
+            app.firestoreService.allAluDevisFlow().collect { devis ->
+                adapter.submitList(devis)
+                val empty = devis.isEmpty()
+                binding.textEmptyState.visibility = if (empty) View.VISIBLE else View.GONE
+                binding.recyclerView.visibility = if (empty) View.GONE else View.VISIBLE
+                hideSkeleton()
+            }
         }
     }
 
-    private fun editDevis(devis: AluDevis) {
+    private fun showSkeleton() {
+        binding.skeleton.root.apply {
+            visibility = android.view.View.VISIBLE
+            startShimmer()
+        }
+    }
+
+    private fun hideSkeleton() {
+        binding.skeleton.root.apply {
+            stopShimmer()
+            visibility = android.view.View.GONE
+        }
+    }
+
+    private fun editDevis(devis: AluDevisFS) {
         val intent = Intent(this, AluDevisActivity::class.java)
         intent.putExtra("devis_id", devis.id)
         startActivity(intent)
     }
 
-    private fun deleteDevis(devis: AluDevis) {
+    private fun deleteDevis(devis: AluDevisFS) {
         AlertDialog.Builder(this)
             .setTitle("Supprimer")
             .setMessage("Supprimer le devis de ${devis.clientName} ?")
             .setPositiveButton("Supprimer") { _, _ ->
-                viewModel.deleteDevis(devis)
+                lifecycleScope.launch { app.firestoreService.deleteAluDevis(devis.id) }
                 Toast.makeText(this, "Devis supprimé", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Annuler", null)
@@ -68,12 +87,12 @@ class AluDevisListActivity : AppCompatActivity() {
 }
 
 class DevisCardAdapter(
-    private val onEdit: (AluDevis) -> Unit,
-    private val onDelete: (AluDevis) -> Unit
+    private val onEdit: (AluDevisFS) -> Unit,
+    private val onDelete: (AluDevisFS) -> Unit
 ) : RecyclerView.Adapter<DevisCardAdapter.ViewHolder>() {
-    private var items = listOf<AluDevis>()
+    private var items = listOf<AluDevisFS>()
 
-    fun submitList(list: List<AluDevis>) { items = list; notifyDataSetChanged() }
+    fun submitList(list: List<AluDevisFS>) { items = list; notifyDataSetChanged() }
 
     override fun getItemCount() = items.size
 
@@ -91,7 +110,7 @@ class DevisCardAdapter(
         holder.binding.textAddress.visibility = if (devis.clientAddress.isNotEmpty()) View.VISIBLE else View.GONE
         holder.binding.textPhone.text = devis.clientPhone
         holder.binding.textPhone.visibility = if (devis.clientPhone.isNotEmpty()) View.VISIBLE else View.GONE
-        holder.binding.textDate.text = dateFormat.format(Date(devis.createdAt))
+        holder.binding.textDate.text = dateFormat.format(Date(devis.createdAt?.toDate()?.time ?: 0L))
         holder.binding.textTotal.text = format.format(devis.totalAmount)
 
         val lines = devis.items.split("\n")

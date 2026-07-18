@@ -7,31 +7,33 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
-import com.matelaspro.app.data.entity.AluProduct
+import com.matelaspro.app.data.firestore.AluProductFS
 import com.matelaspro.app.databinding.ActivityAluProductListBinding
 import com.matelaspro.app.databinding.DialogAluProductBinding
 import com.matelaspro.app.databinding.ItemAluProductBinding
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Currency
 
 class AluProductListActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAluProductListBinding
-    private lateinit var viewModel: AluViewModel
     private lateinit var adapter: AluProductAdapter
+    private val app get() = application as MatelasProApp
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAluProductListBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        viewModel = ViewModelProvider(this)[AluViewModel::class.java]
         setupRecyclerView()
         setupListeners()
+        showSkeleton()
         observeData()
     }
 
@@ -50,17 +52,37 @@ class AluProductListActivity : AppCompatActivity() {
     }
 
     private fun observeData() {
-        viewModel.allProducts.observe(this) { products ->
-            adapter.submitList(products)
-            val empty = products.isEmpty()
-            binding.textEmptyState.visibility = if (empty) View.VISIBLE else View.GONE
-            binding.recyclerView.visibility = if (empty) View.GONE else View.VISIBLE
+        lifecycleScope.launch {
+            app.firestoreService.aluProductsFlow().collect { products ->
+                adapter.submitList(products)
+                val empty = products.isEmpty()
+                binding.textEmptyState.visibility = if (empty) View.VISIBLE else View.GONE
+                binding.recyclerView.visibility = if (empty) View.GONE else View.VISIBLE
+                hideSkeleton()
+            }
         }
     }
 
-    private fun showProductDialog(product: AluProduct?) {
+    private fun showSkeleton() {
+        binding.skeleton.root.apply {
+            visibility = android.view.View.VISIBLE
+            startShimmer()
+        }
+    }
+
+    private fun hideSkeleton() {
+        binding.skeleton.root.apply {
+            stopShimmer()
+            visibility = android.view.View.GONE
+        }
+    }
+
+    private fun showProductDialog(product: AluProductFS?) {
         val dialogBinding = DialogAluProductBinding.inflate(layoutInflater)
         val existingProduct = product
+        val layoutName = dialogBinding.editName.parent as? com.google.android.material.textfield.TextInputLayout
+        val layoutSurface = dialogBinding.editSurface.parent as? com.google.android.material.textfield.TextInputLayout
+        val layoutPrix = dialogBinding.editPrixUnitaire.parent as? com.google.android.material.textfield.TextInputLayout
 
         if (existingProduct != null) {
             dialogBinding.editName.setText(existingProduct.name)
@@ -71,30 +93,46 @@ class AluProductListActivity : AppCompatActivity() {
 
         AlertDialog.Builder(this)
             .setView(dialogBinding.root)
-            .setPositiveButton(getString(R.string.save)) { _, _ ->
-                val name = dialogBinding.editName.text.toString().trim()
-                val surface = dialogBinding.editSurface.text.toString().toDoubleOrNull() ?: 0.0
-                val prixUnitaire = dialogBinding.editPrixUnitaire.text.toString().toDoubleOrNull() ?: 0.0
-                if (name.isEmpty()) {
-                    Toast.makeText(this, getString(R.string.name_required), Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                if (existingProduct != null) {
-                    viewModel.updateProduct(existingProduct.copy(name = name, surface = surface, prixUnitaire = prixUnitaire))
-                } else {
-                    viewModel.insertProduct(name, surface, prixUnitaire)
-                }
-            }
+            .setPositiveButton(getString(R.string.save), null)
             .setNegativeButton(getString(R.string.cancel), null)
-            .show()
+            .create().apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        layoutName?.error = null
+                        layoutSurface?.error = null
+                        layoutPrix?.error = null
+                        val name = dialogBinding.editName.text.toString().trim()
+                        val surface = dialogBinding.editSurface.text.toString().toDoubleOrNull() ?: 0.0
+                        val prixUnitaire = dialogBinding.editPrixUnitaire.text.toString().toDoubleOrNull() ?: 0.0
+                        if (name.isEmpty()) {
+                            layoutName?.error = "Le nom du produit est requis"
+                            dialogBinding.editName.requestFocus()
+                            return@setOnClickListener
+                        }
+                        lifecycleScope.launch {
+                            try {
+                                if (existingProduct != null) {
+                                    app.firestoreService.setAluProduct(existingProduct.id, existingProduct.copy(name = name, surface = surface, prixUnitaire = prixUnitaire))
+                                } else {
+                                    app.firestoreService.setAluProduct(null, AluProductFS(name = name, surface = surface, prixUnitaire = prixUnitaire))
+                                }
+                                dismiss()
+                            } catch (e: Exception) {
+                                layoutName?.error = "Erreur lors de l'enregistrement"
+                            }
+                        }
+                    }
+                }
+                show()
+            }
     }
 
-    private fun deleteProduct(product: AluProduct) {
+    private fun deleteProduct(product: AluProductFS) {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.delete_product))
             .setMessage(getString(R.string.delete_product_confirm, product.name))
             .setPositiveButton(getString(R.string.delete)) { _, _ ->
-                viewModel.deleteProduct(product)
+                lifecycleScope.launch { app.firestoreService.deleteAluProduct(product.id) }
                 Toast.makeText(this, getString(R.string.product_deleted), Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(getString(R.string.cancel), null)
@@ -103,9 +141,9 @@ class AluProductListActivity : AppCompatActivity() {
 }
 
 class AluProductAdapter(
-    private val onEdit: (AluProduct) -> Unit,
-    private val onDelete: (AluProduct) -> Unit
-) : ListAdapter<AluProduct, AluProductAdapter.ViewHolder>(DiffCallback()) {
+    private val onEdit: (AluProductFS) -> Unit,
+    private val onDelete: (AluProductFS) -> Unit
+) : ListAdapter<AluProductFS, AluProductAdapter.ViewHolder>(DiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemAluProductBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -115,7 +153,7 @@ class AluProductAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) = holder.bind(getItem(position))
 
     inner class ViewHolder(private val binding: ItemAluProductBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(product: AluProduct) {
+        fun bind(product: AluProductFS) {
             val format = NumberFormat.getCurrencyInstance().apply { currency = Currency.getInstance("MGA") }
             binding.textName.text = product.name
             binding.textSurface.text = "Surface: ${product.surface}"
@@ -125,8 +163,8 @@ class AluProductAdapter(
         }
     }
 
-    class DiffCallback : DiffUtil.ItemCallback<AluProduct>() {
-        override fun areItemsTheSame(a: AluProduct, b: AluProduct) = a.id == b.id
-        override fun areContentsTheSame(a: AluProduct, b: AluProduct) = a == b
+    class DiffCallback : DiffUtil.ItemCallback<AluProductFS>() {
+        override fun areItemsTheSame(a: AluProductFS, b: AluProductFS) = a.id == b.id
+        override fun areContentsTheSame(a: AluProductFS, b: AluProductFS) = a == b
     }
 }

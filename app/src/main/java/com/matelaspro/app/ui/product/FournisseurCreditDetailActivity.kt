@@ -16,8 +16,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
+import com.google.firebase.Timestamp
 import com.matelaspro.app.MatelasProApp
-import com.matelaspro.app.data.entity.CreditEntry
+import com.matelaspro.app.data.firestore.AuditLogFS
+import com.matelaspro.app.data.firestore.CreditEntryFS
 import com.matelaspro.app.databinding.ActivityFournisseurCreditDetailBinding
 import com.matelaspro.app.databinding.ItemFournisseurProductBinding
 import com.matelaspro.app.util.FormatUtil
@@ -57,7 +59,11 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
 
     private fun loadEntries() {
         lifecycleScope.launch {
-            val entries = app.creditEntryRepository.getActiveByDateRangeAndFournisseur(startOfDay, endOfDay, fournisseurName)
+            val allEntries = app.firestoreService.getCreditEntriesByFournisseur(fournisseurName)
+            val entries = allEntries.filter { e ->
+                val t = e.createdAt?.toDate()?.time ?: 0L
+                t >= startOfDay && t <= endOfDay
+            }
             binding.recyclerView.adapter = CreditProductAdapter(entries,
                 { entry -> showInfoDialog(entry) },
                 { entry -> showCorrigerDialog(entry) },
@@ -67,19 +73,19 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun showDeleteConfirmDialog(entry: CreditEntry) {
+    private fun showDeleteConfirmDialog(entry: CreditEntryFS) {
         AlertDialog.Builder(this)
             .setTitle("Supprimer le crédit")
             .setMessage("Voulez-vous vraiment supprimer le crédit de ${entry.productName} ?")
             .setPositiveButton("Supprimer") { _, _ ->
                 lifecycleScope.launch {
-                    app.auditLogRepository.insert("DELETE", "credit_entries", entry.id, entry.productName)
-                    val linkedProduct = if (entry.productId != null) {
-                        app.productRepository.getProductById(entry.productId!!)
+                    app.firestoreService.setAuditLog(null, AuditLogFS(action = "DELETE", tableName = "credit_entries", recordId = entry.id, detail = entry.productName))
+                    val linkedProduct = if (entry.productId.isNotEmpty()) {
+                        app.firestoreService.getProductById(entry.productId)
                     } else null
-                    app.creditEntryRepository.deleteById(entry.id)
+                    app.firestoreService.deleteCreditEntry(entry.id)
                     if (linkedProduct != null) {
-                        app.productRepository.delete(linkedProduct)
+                        app.firestoreService.deleteProduct(linkedProduct.id)
                     }
                     loadEntries()
                     Toast.makeText(this@FournisseurCreditDetailActivity, "Supprimé", Toast.LENGTH_SHORT).show()
@@ -89,7 +95,7 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun showInfoDialog(entry: CreditEntry) {
+    private fun showInfoDialog(entry: CreditEntryFS) {
         val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.FRANCE)
         val msg = buildString {
             append("Produit: ${entry.productName}\n")
@@ -102,7 +108,7 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
             append("Quantité: ${entry.quantity}\n")
             append("Prix unitaire: ${FormatUtil.montant(entry.sellingPrice)}\n")
             append("Total: ${FormatUtil.montant(entry.sellingPrice * entry.quantity)}\n")
-            append("Date: ${sdf.format(Date(entry.createdAt))}\n")
+            append("Date: ${sdf.format(Date(entry.createdAt?.toDate()?.time ?: 0L))}\n")
             if (entry.notes.isNotEmpty()) {
                 append("\nHistorique des modifications:\n${entry.notes}")
             }
@@ -114,7 +120,7 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun showCorrigerDialog(entry: CreditEntry) {
+    private fun showCorrigerDialog(entry: CreditEntryFS) {
         val ll = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 16, 32, 16)
@@ -138,10 +144,10 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
             hint = "Date (jj/mm/aaaa)"
             inputType = android.text.InputType.TYPE_CLASS_DATETIME
             val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE)
-            setText(sdf.format(Date(entry.createdAt)))
+            setText(sdf.format(Date(entry.createdAt?.toDate()?.time ?: 0L)))
             isFocusable = false
             setOnClickListener {
-                val cal = Calendar.getInstance().apply { timeInMillis = entry.createdAt }
+                val cal = Calendar.getInstance().apply { timeInMillis = entry.createdAt?.toDate()?.time ?: 0L }
                 DatePickerDialog(this@FournisseurCreditDetailActivity, { _, y, m, d ->
                     cal.set(Calendar.YEAR, y)
                     cal.set(Calendar.MONTH, m)
@@ -151,7 +157,6 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
             }
         }
 
-        // Category-specific fields
         val editCategoryField = EditText(this).apply {
             when (entry.category) {
                 "Matelas" -> {
@@ -171,7 +176,6 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
             }
         }
 
-        // Prix par cm for Matelas
         val editPrixCm = if (entry.category == "Matelas") {
             EditText(this).apply {
                 hint = "Prix par cm"
@@ -181,7 +185,6 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
             }
         } else null
 
-        // Live total preview
         val textTotal = TextView(this).apply {
             text = "Total: 0.00 €"
             textSize = 16f
@@ -203,7 +206,6 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
         editQty.addTextChangedListener(qtyWatcher)
         editPrice.addTextChangedListener(qtyWatcher)
 
-        // Auto-calculate selling price for Matelas
         if (entry.category == "Matelas" && editPrixCm != null) {
             val matelasWatcher = object : TextWatcher {
                 override fun afterTextChanged(s: Editable?) {
@@ -228,7 +230,6 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
             ).apply { setMargins(0, 0, 0, 12) })
         }
 
-        // Initial total
         updateTotal()
 
         val dialog = AlertDialog.Builder(this)
@@ -240,12 +241,13 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
 
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                editName.error = null; editQty.error = null; editPrice.error = null
                 val newName = editName.text.toString().trim()
                 val newQty = editQty.text.toString().toIntOrNull() ?: 0
                 val newPrice = editPrice.text.toString().toDoubleOrNull() ?: 0.0
-                if (newName.isEmpty()) { Toast.makeText(this@FournisseurCreditDetailActivity, "Nom invalide", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-                if (newQty <= 0) { Toast.makeText(this@FournisseurCreditDetailActivity, "Quantité invalide", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-                if (newPrice <= 0) { Toast.makeText(this@FournisseurCreditDetailActivity, "Prix invalide", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                if (newName.isEmpty()) { editName.error = "Le nom du produit est requis"; editName.requestFocus(); return@setOnClickListener }
+                if (newQty <= 0) { editQty.error = "La quantité doit être supérieure à 0"; editQty.requestFocus(); return@setOnClickListener }
+                if (newPrice <= 0) { editPrice.error = "Le prix doit être supérieur à 0"; editPrice.requestFocus(); return@setOnClickListener }
 
                 lifecycleScope.launch {
                     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE)
@@ -290,40 +292,37 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
                     }
                     val notes = if (entry.notes.isEmpty()) modLine else "${entry.notes}\n$modLine"
 
-                    // Mark original as overridden
-                    app.creditEntryRepository.update(entry.copy(isOverridden = true))
+                    app.firestoreService.setCreditEntry(entry.id, entry.copy(isOverridden = true))
 
-                    // Create avoir (hidden, negative qty)
-                    app.creditEntryRepository.insert(entry.copy(
-                        id = 0,
+                    app.firestoreService.setCreditEntry(null, entry.copy(
+                        id = "",
                         quantity = -entry.quantity,
                         sellingPrice = entry.sellingPrice,
-                        createdAt = now
+                        createdAt = Timestamp(now / 1000, 0)
                     ))
 
-                    // Create corrected entry
                     val newCorrectionCount = entry.correctionCount + 1
-                    app.creditEntryRepository.insert(entry.copy(
-                        id = 0,
+                    app.firestoreService.setCreditEntry(null, entry.copy(
+                        id = "",
                         productName = newName,
                         quantity = newQty,
                         sellingPrice = newPrice,
                         epaisseur = newEpaisseur,
                         longueur = newLongueur,
                         description = newDescription,
-                        createdAt = chosenDate,
+                        createdAt = Timestamp(chosenDate / 1000, 0),
                         notes = notes,
                         productId = entry.productId,
                         isOverridden = false,
                         correctionCount = newCorrectionCount
                     ))
 
-                    // Update product in stock if linked
                     val pid = entry.productId
-                    if (pid != null) {
-                        val product = app.productRepository.getProductById(pid)
+                    if (pid.isNotEmpty()) {
+                        val product = app.firestoreService.getProductById(pid)
                         if (product != null) {
-                            val sold = app.saleRepository.getTotalQuantitySoldByProductId(pid)
+                            val allSales = app.firestoreService.getAllSales()
+                            val sold = allSales.filter { it.productId == pid }.sumOf { it.quantity }
                             val newStock = newQty - sold
                             if (newStock >= 0) {
                                 val newPrixCm = editPrixCm?.text?.toString()?.toDoubleOrNull() ?: product.prixUnitaireCm
@@ -331,7 +330,7 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
                                     "Matelas" -> product.purchasePrice
                                     else -> newPrice
                                 }
-                                app.productRepository.update(product.copy(
+                                app.firestoreService.setProduct(product.id, product.copy(
                                     name = newName,
                                     quantity = newStock,
                                     sellingPrice = newPrice,
@@ -345,7 +344,7 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
                         }
                     }
 
-                    app.auditLogRepository.insert("CORRECT", "credit_entries", entry.id, entry.productName)
+                    app.firestoreService.setAuditLog(null, AuditLogFS(action = "CORRECT", tableName = "credit_entries", recordId = entry.id, detail = entry.productName))
                     loadEntries()
                     Toast.makeText(this@FournisseurCreditDetailActivity, "Crédit corrigé", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
@@ -357,10 +356,10 @@ class FournisseurCreditDetailActivity : AppCompatActivity() {
 }
 
 class CreditProductAdapter(
-    private val items: List<CreditEntry>,
-    private val onInfo: (CreditEntry) -> Unit,
-    private val onCorriger: (CreditEntry) -> Unit,
-    private val onDelete: (CreditEntry) -> Unit
+    private val items: List<CreditEntryFS>,
+    private val onInfo: (CreditEntryFS) -> Unit,
+    private val onCorriger: (CreditEntryFS) -> Unit,
+    private val onDelete: (CreditEntryFS) -> Unit
 ) : RecyclerView.Adapter<CreditProductAdapter.ViewHolder>() {
 
     override fun getItemCount() = items.size

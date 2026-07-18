@@ -21,13 +21,14 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.matelaspro.app.MainViewModel
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
-import com.matelaspro.app.data.entity.CreditEntry
-import com.matelaspro.app.data.entity.Product
+import com.matelaspro.app.data.firestore.AuditLogFS
+import com.matelaspro.app.data.firestore.CreditEntryFS
+import com.matelaspro.app.data.firestore.ProductFS
 import com.matelaspro.app.databinding.ActivityProductBinding
-import java.util.Calendar
 import com.matelaspro.app.databinding.DialogProductBinding
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -37,7 +38,7 @@ class ProductActivity : AppCompatActivity() {
     private lateinit var adapter: ProductAdapter
     private var categories = listOf("Matelas", "Pieces de bois", "Meuble")
     private var selectedCategory: String = ""
-    private var allProductsList: List<Product> = emptyList()
+    private var allProductsList: List<ProductFS> = emptyList()
     private var fournisseurNames = listOf<String>()
     private var filterDateStart: Long = -1L
     private var filterDateEnd: Long = -1L
@@ -57,6 +58,7 @@ class ProductActivity : AppCompatActivity() {
         setupRecyclerView()
         setupListeners()
         setupCategoryFilter()
+        showSkeleton()
         loadFournisseurs()
         if (filterDateStart > 0 && filterDateEnd > 0) {
             loadFilteredProducts()
@@ -67,27 +69,40 @@ class ProductActivity : AppCompatActivity() {
 
     private fun loadFilteredProducts() {
         lifecycleScope.launch {
-            val repo = (application as MatelasProApp).productRepository
-            val saleRepo = (application as MatelasProApp).saleRepository
+            val app = application as MatelasProApp
+            val allProducts = app.firestoreService.getAllProducts()
+            val allSales = app.firestoreService.getAllSales()
+            val soldMap = allSales.groupBy { it.productId }.mapValues { it.value.sumOf { s -> s.quantity } }
+
             val products = if (filterFournisseur != null) {
-                repo.getProductsByDateRangeAndFournisseur(filterDateStart, filterDateEnd, filterFournisseur!!)
+                allProducts.filter { p ->
+                    p.fournisseur == filterFournisseur &&
+                    (p.createdAt?.toDate()?.time ?: 0L) >= filterDateStart &&
+                    (p.createdAt?.toDate()?.time ?: 0L) <= filterDateEnd
+                }
             } else {
-                repo.getProductsByDateRange(filterDateStart, filterDateEnd)
+                allProducts.filter { p ->
+                    (p.createdAt?.toDate()?.time ?: 0L) >= filterDateStart &&
+                    (p.createdAt?.toDate()?.time ?: 0L) <= filterDateEnd
+                }
             }
             allProductsList = products.map { p ->
-                val sold = saleRepo.getTotalQuantitySoldByProductId(p.id)
+                val sold = soldMap[p.id] ?: 0
                 p.copy(quantity = p.quantity + sold)
             }
             filterProducts()
+            hideSkeleton()
             binding.spinnerCategory.visibility = android.view.View.GONE
             binding.textCategoryLabel.visibility = android.view.View.GONE
         }
     }
 
     private fun loadFournisseurs() {
-        val repo = (application as MatelasProApp).fournisseurRepository
-        repo.allFournisseurs.observe(this) { list ->
-            fournisseurNames = list.map { it.name }
+        lifecycleScope.launch {
+            val app = application as MatelasProApp
+            app.firestoreService.allFournisseursFlow().collect { list ->
+                fournisseurNames = list.map { it.name }
+            }
         }
     }
 
@@ -108,10 +123,10 @@ class ProductActivity : AppCompatActivity() {
         var filtered = if (selectedCategory.isEmpty()) allProductsList
         else allProductsList.filter { it.category == selectedCategory }
         if (filterDateStart > 0) {
-            filtered = filtered.filter { it.createdAt >= filterDateStart }
+            filtered = filtered.filter { it.createdAt?.toDate()?.time ?: 0L >= filterDateStart }
         }
         if (filterDateEnd > 0) {
-            filtered = filtered.filter { it.createdAt <= filterDateEnd }
+            filtered = filtered.filter { it.createdAt?.toDate()?.time ?: 0L <= filterDateEnd }
         }
         if (searchQuery.isNotEmpty()) {
             val q = searchQuery.lowercase()
@@ -153,6 +168,7 @@ class ProductActivity : AppCompatActivity() {
         binding.btnBack.setOnClickListener { finish() }
 
         binding.swipeRefresh.setOnRefreshListener {
+            showSkeleton()
             observeData()
             binding.swipeRefresh.isRefreshing = false
         }
@@ -203,16 +219,19 @@ class ProductActivity : AppCompatActivity() {
     }
 
     private fun observeData() {
-        viewModel.allProducts.observe(this) { products ->
-            allProductsList = products
-            filterProducts()
+        lifecycleScope.launch {
+            viewModel.allProducts.collect { products ->
+                allProductsList = products
+                filterProducts()
+                hideSkeleton()
+            }
         }
     }
 
-    private fun showProductDialog(product: Product?) {
+    private fun showProductDialog(product: ProductFS?) {
         val dialogBinding = DialogProductBinding.inflate(layoutInflater)
         val existingProduct = product
-        var selectedExistingProduct: Product? = null
+        var selectedExistingProduct: ProductFS? = null
 
         val catItems = mutableListOf("Choisir...")
         catItems.addAll(categories)
@@ -242,7 +261,7 @@ class ProductActivity : AppCompatActivity() {
             lastCategory = existingProduct.category
             onCategoryChanged(dialogBinding, existingProduct.category)
             val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("fr", "FR"))
-            dialogBinding.textStockDate.text = "Ajouté le: ${dateFormat.format(Date(existingProduct.createdAt))}"
+            dialogBinding.textStockDate.text = "Ajouté le: ${dateFormat.format(Date(existingProduct.createdAt?.toDate()?.time ?: 0L))}"
         } else {
             dialogBinding.layoutDate.visibility = View.VISIBLE
             val sdfDate = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE)
@@ -318,9 +337,9 @@ class ProductActivity : AppCompatActivity() {
             val acFiltered = ArrayList<android.util.Pair<String, String>>()
             val acAdapter = AcAdapter(this@ProductActivity, acData, acFiltered)
             dialogBinding.editName.setAdapter(acAdapter)
-            val autocompleteProductList = mutableListOf<Product>()
+            val autocompleteProductList = mutableListOf<ProductFS>()
 
-            fun productLabel(p: Product): String {
+            fun productLabel(p: ProductFS): String {
                 return when (p.category) {
                     "Matelas" -> {
                         val parts = mutableListOf(p.name)
@@ -340,7 +359,7 @@ class ProductActivity : AppCompatActivity() {
                     else -> p.name
                 }
             }
-            fun productRightText(p: Product): String {
+            fun productRightText(p: ProductFS): String {
                 return when {
                     p.category == "Matelas" && p.prixUnitaireCm > 0 -> "%,d MGA/cm".format(p.prixUnitaireCm.toLong())
                     (p.category == "Pieces de bois" || p.category == "Meuble") && p.purchasePrice > 0 -> "%,d MGA".format(p.purchasePrice.toLong())
@@ -361,8 +380,8 @@ class ProductActivity : AppCompatActivity() {
                 val cat = categories[cp - 1]
                 val fourn = fournisseurNames[fp - 1]
                 lifecycleScope.launch {
-                    val repo = (application as MatelasProApp).productRepository
-                    val list = repo.getProductsByFournisseurAndCategory(fourn, cat)
+                    val app = application as MatelasProApp
+                    val list = app.firestoreService.getProductsByFournisseurAndCategory(fourn, cat)
                     autocompleteProductList.clear()
                     autocompleteProductList.addAll(list)
                     acData.clear()
@@ -431,7 +450,6 @@ class ProductActivity : AppCompatActivity() {
                 override fun onNothingSelected(parent: AdapterView<*>?) {}
             }
 
-            // add mode category listener
             val catListener = object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                     val cat = if (position > 0) categories[position - 1] else ""
@@ -610,17 +628,16 @@ class ProductActivity : AppCompatActivity() {
                             val updatedQty = mergeProduct.quantity + quantity
                             val updated = mergeProduct.copy(quantity = updatedQty)
                             viewModel.updateProduct(updated)
-                            val creditEntry = CreditEntry(
+                            val creditEntry = CreditEntryFS(
                                 productId = mergeProduct.id,
                                 productName = mergeProduct.name,
                                 fournisseur = fournisseur,
                                 category = category,
                                 quantity = quantity,
-                                sellingPrice = sellingPrice,
-                                createdAt = System.currentTimeMillis()
+                                sellingPrice = sellingPrice
                             )
-                            app.creditEntryRepository.insert(creditEntry)
-                            app.auditLogRepository.insert("MERGE", "products", mergeProduct.id, "Added qty $quantity to $name")
+                            app.firestoreService.setCreditEntry(null, creditEntry)
+                            app.firestoreService.setAuditLog(null, AuditLogFS(action = "MERGE", tableName = "products", recordId = mergeProduct.id, detail = "Added qty $quantity to $name"))
                             runOnUiThread {
                                 Toast.makeText(this@ProductActivity, "Quantité ajoutée au produit existant", Toast.LENGTH_SHORT).show()
                             }
@@ -700,7 +717,21 @@ class ProductActivity : AppCompatActivity() {
         binding.editPrixTotalBois.setText(if (total > 0) String.format("%.2f", total) else "")
     }
 
-    private fun deleteProduct(product: Product) {
+    private fun showSkeleton() {
+        binding.skeleton.root.apply {
+            visibility = View.VISIBLE
+            startShimmer()
+        }
+    }
+
+    private fun hideSkeleton() {
+        binding.skeleton.root.apply {
+            stopShimmer()
+            visibility = View.GONE
+        }
+    }
+
+    private fun deleteProduct(product: ProductFS) {
         if (product.quantity > 0) {
             AlertDialog.Builder(this)
                 .setTitle("Suppression impossible")
@@ -715,7 +746,7 @@ class ProductActivity : AppCompatActivity() {
             .setPositiveButton("Supprimer") { _, _ ->
                 lifecycleScope.launch {
                     val app = application as MatelasProApp
-                    app.auditLogRepository.insert("DELETE", "products", product.id, product.name)
+                    app.firestoreService.setAuditLog(null, AuditLogFS(action = "DELETE", tableName = "products", recordId = product.id, detail = product.name))
                     viewModel.deleteProduct(product)
                     Toast.makeText(this@ProductActivity, "Supprimé", Toast.LENGTH_SHORT).show()
                 }

@@ -8,21 +8,24 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.matelaspro.app.data.entity.AluProduct
+import com.matelaspro.app.MatelasProApp
+import com.matelaspro.app.data.firestore.AluDevisFS
+import com.matelaspro.app.data.firestore.AluProductFS
 import com.matelaspro.app.databinding.ActivityAluDevisBinding
 import com.matelaspro.app.databinding.DialogClientInfoBinding
 import com.matelaspro.app.databinding.ItemAluProductDevisBinding
 import com.matelaspro.app.databinding.ItemDevisItemBinding
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Currency
 import kotlin.math.ceil
 import kotlin.math.roundToLong
 
 data class DevisItem(
-    val product: AluProduct,
+    val product: AluProductFS,
     var surface: Double = product.surface
 ) {
     val quantity: Int get() = ceil(surface / product.surface).toInt()
@@ -36,22 +39,21 @@ private fun roundToNearest(value: Double): Double {
 
 class AluDevisActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAluDevisBinding
-    private lateinit var viewModel: AluViewModel
     private lateinit var productAdapter: ProductCardAdapter
     private lateinit var devisAdapter: DevisItemsAdapter
     private val devisItems = mutableListOf<DevisItem>()
-    private var editingDevisId: Long? = null
+    private var editingDevisId: String? = null
     private var editingClientName: String = ""
     private var editingClientAddress: String = ""
     private var editingClientPhone: String = ""
+    private val app get() = application as MatelasProApp
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAluDevisBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        viewModel = ViewModelProvider(this)[AluViewModel::class.java]
 
-        editingDevisId = intent.getLongExtra("devis_id", -1L).let { if (it == -1L) null else it }
+        editingDevisId = intent.getStringExtra("devis_id")
 
         binding.btnBack.setOnClickListener { finish() }
 
@@ -83,12 +85,15 @@ class AluDevisActivity : AppCompatActivity() {
 
         binding.btnSaveDevis.setOnClickListener { showClientDialog() }
 
-        viewModel.allProducts.observe(this) { products ->
-            productAdapter.submitList(products)
+        lifecycleScope.launch {
+            app.firestoreService.aluProductsFlow().collect { products ->
+                productAdapter.submitList(products)
+            }
         }
 
         if (editingDevisId != null) {
-            viewModel.getDevisById(editingDevisId!!) { devis ->
+            lifecycleScope.launch {
+                val devis = app.firestoreService.getAluDevisById(editingDevisId!!)
                 if (devis != null) {
                     editingClientName = devis.clientName
                     editingClientAddress = devis.clientAddress
@@ -99,16 +104,16 @@ class AluDevisActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadDevisItems(devis: com.matelaspro.app.data.entity.AluDevis) {
+    private fun loadDevisItems(devis: AluDevisFS) {
         val lines = devis.items.split("\n")
         for (line in lines) {
             val parts = line.split("|")
             if (parts.size >= 6) {
-                val productId = parts[0].toLongOrNull() ?: 0L
+                val productId = parts[0]
                 val name = parts[1]
                 val surface = parts[3].toDoubleOrNull() ?: 0.0
                 val pu = parts[4].toDoubleOrNull() ?: 0.0
-                val product = AluProduct(id = productId, name = name, surface = surface, prixUnitaire = pu)
+                val product = AluProductFS(id = productId, name = name, surface = surface, prixUnitaire = pu)
                 devisItems.add(DevisItem(product, surface))
             }
         }
@@ -128,6 +133,7 @@ class AluDevisActivity : AppCompatActivity() {
             return
         }
         val dialogBinding = DialogClientInfoBinding.inflate(layoutInflater)
+        val layoutNom = dialogBinding.editNom.parent as? com.google.android.material.textfield.TextInputLayout
 
         if (editingDevisId != null) {
             dialogBinding.editNom.setText(editingClientName)
@@ -137,41 +143,60 @@ class AluDevisActivity : AppCompatActivity() {
 
         AlertDialog.Builder(this)
             .setView(dialogBinding.root)
-            .setPositiveButton("Confirmer") { _, _ ->
-                val nom = dialogBinding.editNom.text.toString().trim()
-                val adresse = dialogBinding.editAdresse.text.toString().trim()
-                val telephone = dialogBinding.editTelephone.text.toString().trim()
-                if (nom.isEmpty()) {
-                    Toast.makeText(this, "Le nom du client est requis", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                val total = devisItems.sumOf { it.prixTotal }
-
-                if (editingDevisId != null) {
-                    viewModel.updateDevis(
-                        editingDevisId!!, devisItems.toList(), total,
-                        clientName = nom, clientAddress = adresse, clientPhone = telephone
-                    )
-                    Toast.makeText(this, "Devis mis à jour !", Toast.LENGTH_SHORT).show()
-                } else {
-                    viewModel.saveDevis(nom, adresse, telephone, devisItems.toList(), total)
-                    devisItems.clear()
-                    devisAdapter.notifyDataSetChanged()
-                    updateTotal()
-                    Toast.makeText(this, "Devis enregistré !", Toast.LENGTH_SHORT).show()
-                }
-            }
+            .setPositiveButton("Confirmer", null)
             .setNegativeButton("Annuler", null)
-            .show()
+            .create().apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        layoutNom?.error = null
+                        val nom = dialogBinding.editNom.text.toString().trim()
+                        val adresse = dialogBinding.editAdresse.text.toString().trim()
+                        val telephone = dialogBinding.editTelephone.text.toString().trim()
+                        if (nom.isEmpty()) {
+                            layoutNom?.error = "Le nom du client est requis"
+                            dialogBinding.editNom.requestFocus()
+                            return@setOnClickListener
+                        }
+                        val total = devisItems.sumOf { it.prixTotal }
+
+                        lifecycleScope.launch {
+                            try {
+                                val itemsStr = devisItems.joinToString("\n") { "${it.product.id}|${it.product.name}|${it.quantity}|${it.surface}|${it.product.prixUnitaire}|${it.prixTotal}" }
+                                if (editingDevisId != null) {
+                                    val existing = app.firestoreService.getAluDevisById(editingDevisId!!) ?: return@launch
+                                    app.firestoreService.setAluDevis(editingDevisId, existing.copy(
+                                        items = itemsStr, totalAmount = total,
+                                        clientName = nom, clientAddress = adresse, clientPhone = telephone
+                                    ))
+                                    Toast.makeText(this@AluDevisActivity, "Devis mis à jour !", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    app.firestoreService.setAluDevis(null, AluDevisFS(
+                                        clientName = nom, clientAddress = adresse, clientPhone = telephone,
+                                        items = itemsStr, totalAmount = total
+                                    ))
+                                    devisItems.clear()
+                                    devisAdapter.notifyDataSetChanged()
+                                    updateTotal()
+                                    Toast.makeText(this@AluDevisActivity, "Devis enregistré !", Toast.LENGTH_SHORT).show()
+                                }
+                                dismiss()
+                            } catch (e: Exception) {
+                                layoutNom?.error = "Erreur lors de l'enregistrement"
+                            }
+                        }
+                    }
+                }
+                show()
+            }
     }
 }
 
 private class ProductCardAdapter(
-    private val onClick: (AluProduct) -> Unit
+    private val onClick: (AluProductFS) -> Unit
 ) : RecyclerView.Adapter<ProductCardAdapter.ViewHolder>() {
-    private var items = listOf<AluProduct>()
+    private var items = listOf<AluProductFS>()
 
-    fun submitList(list: List<AluProduct>) { items = list; notifyDataSetChanged() }
+    fun submitList(list: List<AluProductFS>) { items = list; notifyDataSetChanged() }
 
     override fun getItemCount() = items.size
 

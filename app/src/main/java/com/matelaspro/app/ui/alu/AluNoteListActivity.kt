@@ -10,25 +10,26 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.matelaspro.app.data.entity.AluNote
+import com.matelaspro.app.MatelasProApp
+import com.matelaspro.app.data.firestore.AluNoteFS
 import com.matelaspro.app.databinding.ActivityAluNoteListBinding
 import com.matelaspro.app.databinding.ItemAluNoteBinding
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Currency
 
 class AluNoteListActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAluNoteListBinding
-    private lateinit var viewModel: AluViewModel
     private lateinit var adapter: NoteAdapter
+    private val app get() = application as MatelasProApp
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAluNoteListBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        viewModel = ViewModelProvider(this)[AluViewModel::class.java]
 
         binding.btnBack.setOnClickListener { finish() }
         binding.fabAdd.setOnClickListener { showNoteForm(null) }
@@ -39,16 +40,34 @@ class AluNoteListActivity : AppCompatActivity() {
         )
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
+        showSkeleton()
 
-        viewModel.allNotes.observe(this) { notes ->
-            adapter.submitList(notes)
-            val empty = notes.isEmpty()
-            binding.textEmptyState.visibility = if (empty) View.VISIBLE else View.GONE
-            binding.recyclerView.visibility = if (empty) View.GONE else View.VISIBLE
+        lifecycleScope.launch {
+            app.firestoreService.allAluNotesFlow().collect { notes ->
+                adapter.submitList(notes)
+                val empty = notes.isEmpty()
+                binding.textEmptyState.visibility = if (empty) View.VISIBLE else View.GONE
+                binding.recyclerView.visibility = if (empty) View.GONE else View.VISIBLE
+                hideSkeleton()
+            }
         }
     }
 
-    private fun showNoteForm(editNote: AluNote?) {
+    private fun showSkeleton() {
+        binding.skeleton.root.apply {
+            visibility = android.view.View.VISIBLE
+            startShimmer()
+        }
+    }
+
+    private fun hideSkeleton() {
+        binding.skeleton.root.apply {
+            stopShimmer()
+            visibility = android.view.View.GONE
+        }
+    }
+
+    private fun showNoteForm(editNote: AluNoteFS?) {
         val editName = EditText(this).apply { hint = "Nom Client"; setText(editNote?.clientName ?: "") }
         val editDesc = EditText(this).apply { hint = "Description"; setText(editNote?.description ?: "") }
         val editTotal = EditText(this).apply {
@@ -66,40 +85,68 @@ class AluNoteListActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle(if (editNote == null) "Nouvelle Note" else "Modifier Note")
             .setView(ll)
-            .setPositiveButton("Enregistrer") { _, _ ->
-                val name = editName.text.toString().trim()
-                val desc = editDesc.text.toString().trim()
-                val total = editTotal.text.toString().trim().toDoubleOrNull()
-                if (name.isEmpty() || desc.isEmpty() || total == null || total <= 0) {
-                    Toast.makeText(this, "Vérifiez les champs", Toast.LENGTH_SHORT).show(); return@setPositiveButton
-                }
-                if (editNote != null) {
-                    viewModel.updateNote(editNote.copy(clientName = name, description = desc, montantTotal = total, resteAPaye = total - editNote.montantPaye))
-                } else {
-                    viewModel.insertNote(name, desc, total)
-                }
-            }
+            .setPositiveButton("Enregistrer", null)
             .setNegativeButton("Annuler", null)
-            .show()
+            .create().apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        editName.error = null; editDesc.error = null; editTotal.error = null
+                        val name = editName.text.toString().trim()
+                        val desc = editDesc.text.toString().trim()
+                        val total = editTotal.text.toString().trim().toDoubleOrNull()
+                        if (name.isEmpty()) {
+                            editName.error = "Le nom du client est requis"
+                            editName.requestFocus()
+                            return@setOnClickListener
+                        }
+                        if (desc.isEmpty()) {
+                            editDesc.error = "La description est requise"
+                            editDesc.requestFocus()
+                            return@setOnClickListener
+                        }
+                        if (total == null || total <= 0) {
+                            editTotal.error = "Le montant doit être supérieur à 0"
+                            editTotal.requestFocus()
+                            return@setOnClickListener
+                        }
+                        lifecycleScope.launch {
+                            try {
+                                if (editNote != null) {
+                                    app.firestoreService.setAluNote(editNote.id, editNote.copy(clientName = name, description = desc, montantTotal = total, resteAPaye = total - editNote.montantPaye))
+                                } else {
+                                    app.firestoreService.setAluNote(null, AluNoteFS(clientName = name, description = desc, montantTotal = total))
+                                }
+                                dismiss()
+                            } catch (e: Exception) {
+                                editName.error = "Erreur lors de l'enregistrement"
+                            }
+                        }
+                    }
+                }
+                show()
+            }
     }
 
-    private fun deleteNote(note: AluNote) {
+    private fun deleteNote(note: AluNoteFS) {
         AlertDialog.Builder(this)
             .setTitle("Supprimer")
             .setMessage("Supprimer la note de ${note.clientName} ?")
-            .setPositiveButton("Supprimer") { _, _ -> viewModel.deleteNote(note); Toast.makeText(this, "Note supprimée", Toast.LENGTH_SHORT).show() }
+            .setPositiveButton("Supprimer") { _, _ ->
+                lifecycleScope.launch { app.firestoreService.deleteAluNote(note.id) }
+                Toast.makeText(this, "Note supprimée", Toast.LENGTH_SHORT).show()
+            }
             .setNegativeButton("Annuler", null)
             .show()
     }
 }
 
 private class NoteAdapter(
-    private val onClick: (AluNote) -> Unit,
-    private val onDelete: (AluNote) -> Unit
+    private val onClick: (AluNoteFS) -> Unit,
+    private val onDelete: (AluNoteFS) -> Unit
 ) : RecyclerView.Adapter<NoteAdapter.ViewHolder>() {
-    private var items = listOf<AluNote>()
+    private var items = listOf<AluNoteFS>()
 
-    fun submitList(list: List<AluNote>) { items = list; notifyDataSetChanged() }
+    fun submitList(list: List<AluNoteFS>) { items = list; notifyDataSetChanged() }
 
     override fun getItemCount() = items.size
 

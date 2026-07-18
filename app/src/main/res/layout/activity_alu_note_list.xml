@@ -13,6 +13,7 @@
             app:navigationIconTint="@color/white">
             <Button android:id="@+id/btnBack" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
         </com.google.android.material.appbar.MaterialToolbar>
+        <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
         <TextView android:id="@+id/textEmptyState" android:layout_width="match_parent"
             android:layout_height="match_parent" android:gravity="center"
             android:text="Aucune note" android:textSize="18sp"
@@ -20,6 +21,8 @@
         <androidx.recyclerview.widget.RecyclerView android:id="@+id/recyclerView"
             android:layout_width="match_parent" android:layout_height="match_parent"
             android:padding="4dp" android:clipToPadding="false" android:visibility="gone" />
+        <include layout="@layout/shimmer_list_skeleton" android:id="@+id/skeleton" />
+        </FrameLayout>
     </LinearLayout>
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabAdd" android:layout_width="wrap_content" android:layout_height="wrap_content"

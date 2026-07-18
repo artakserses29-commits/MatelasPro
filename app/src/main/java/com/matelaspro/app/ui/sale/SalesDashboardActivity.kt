@@ -1,6 +1,5 @@
 package com.matelaspro.app.ui.sale
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -11,12 +10,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
-import com.matelaspro.app.data.entity.Sale
+import com.matelaspro.app.data.firestore.SaleFS
 import com.matelaspro.app.databinding.ActivitySalesDashboardBinding
+import com.matelaspro.app.service.SessionManager
 import com.matelaspro.app.util.FormatUtil
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -26,7 +24,7 @@ class SalesDashboardActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySalesDashboardBinding
     private lateinit var app: MatelasProApp
-    private var currentUserId: Long = 0
+    private var currentUserId: String = ""
     private var isAdmin: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,19 +32,19 @@ class SalesDashboardActivity : AppCompatActivity() {
         binding = ActivitySalesDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val loginPrefs = getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
-        currentUserId = intent.getLongExtra("selectedUserId", loginPrefs.getLong("currentUserId", 0))
-        isAdmin = loginPrefs.getBoolean("isAdmin", false)
+        currentUserId = intent.getStringExtra("selectedUserId") ?: SessionManager.currentUserId
+        isAdmin = SessionManager.isAdmin
 
         app = application as MatelasProApp
 
         binding.btnBack.setOnClickListener { finish() }
-
+        showSkeleton()
         loadSales()
     }
 
     override fun onResume() {
         super.onResume()
+        showSkeleton()
         loadSales()
     }
 
@@ -57,15 +55,16 @@ class SalesDashboardActivity : AppCompatActivity() {
             updateMonth(sales)
             renderDailyBreakdown(sales)
             renderMonthlyBreakdown(sales)
+            hideSkeleton()
         }
     }
 
-    private suspend fun getSales(): List<Sale> {
-        val all = withContext(Dispatchers.IO) { app.saleRepository.getAllSalesList() }
-        return if (currentUserId == 0L) all else all.filter { it.userId == currentUserId }
+    private suspend fun getSales(): List<SaleFS> {
+        val all = app.firestoreService.getAllSales()
+        return if (currentUserId.isEmpty()) all else all.filter { it.userId == currentUserId }
     }
 
-    private fun updateToday(sales: List<Sale>) {
+    private fun updateToday(sales: List<SaleFS>) {
         val cal = Calendar.getInstance()
         cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
         cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
@@ -73,7 +72,7 @@ class SalesDashboardActivity : AppCompatActivity() {
         cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59)
         cal.set(Calendar.SECOND, 59); cal.set(Calendar.MILLISECOND, 999)
         val endOfDay = cal.timeInMillis
-        val todayTotal = sales.filter { it.saleDate in startOfDay..endOfDay }.sumOf { it.totalAmount }
+        val todayTotal = sales.filter { (it.saleDate?.toDate()?.time ?: 0L) in startOfDay..endOfDay }.sumOf { it.totalAmount }
         binding.textTodaySales.text = FormatUtil.montant(todayTotal)
         binding.cardToday.setOnClickListener {
             val intent = Intent(this, SaleDayDetailActivity::class.java)
@@ -83,14 +82,14 @@ class SalesDashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateMonth(sales: List<Sale>) {
+    private fun updateMonth(sales: List<SaleFS>) {
         val cal = Calendar.getInstance()
         cal.set(Calendar.DAY_OF_MONTH, 1); cal.set(Calendar.HOUR_OF_DAY, 0)
         cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
         val startOfMonth = cal.timeInMillis
         cal.add(Calendar.MONTH, 1)
         val startOfNextMonth = cal.timeInMillis
-        val monthTotal = sales.filter { it.saleDate in startOfMonth until startOfNextMonth }.sumOf { it.totalAmount }
+        val monthTotal = sales.filter { (it.saleDate?.toDate()?.time ?: 0L) in startOfMonth until startOfNextMonth }.sumOf { it.totalAmount }
         binding.textMonthSales.text = FormatUtil.montant(monthTotal)
         binding.cardMonth.setOnClickListener {
             val intent = Intent(this, SaleMonthBreakdownActivity::class.java)
@@ -100,7 +99,7 @@ class SalesDashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderDailyBreakdown(sales: List<Sale>) {
+    private fun renderDailyBreakdown(sales: List<SaleFS>) {
         binding.layoutDailySales.removeAllViews()
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE)
         val todayStart = Calendar.getInstance().apply {
@@ -117,7 +116,7 @@ class SalesDashboardActivity : AppCompatActivity() {
             }
             val dayStartMs = dayStartCal.timeInMillis
             val dayEndMs = dayStartMs + 86400000L
-            val dayTotal = sales.filter { it.saleDate >= dayStartMs && it.saleDate < dayEndMs }.sumOf { it.totalAmount }
+            val dayTotal = sales.filter { val d = it.saleDate?.toDate()?.time ?: 0L; d >= dayStartMs && d < dayEndMs }.sumOf { it.totalAmount }
             if (dayTotal > 0) {
                 hasData = true
                 val dayLabel = sdf.format(Date(dayStartMs))
@@ -134,7 +133,7 @@ class SalesDashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderMonthlyBreakdown(sales: List<Sale>) {
+    private fun renderMonthlyBreakdown(sales: List<SaleFS>) {
         binding.layoutMonthlySales.removeAllViews()
         val sdf = SimpleDateFormat("MM/yyyy", Locale.FRANCE)
         val currentYear = Calendar.getInstance().get(Calendar.YEAR)
@@ -146,7 +145,7 @@ class SalesDashboardActivity : AppCompatActivity() {
             val startOfMonth = monthCal.timeInMillis
             monthCal.add(Calendar.MONTH, 1)
             val startOfNextMonth = monthCal.timeInMillis
-            val monthTotal = sales.filter { it.saleDate >= startOfMonth && it.saleDate < startOfNextMonth }.sumOf { it.totalAmount }
+            val monthTotal = sales.filter { val d = it.saleDate?.toDate()?.time ?: 0L; d >= startOfMonth && d < startOfNextMonth }.sumOf { it.totalAmount }
             if (monthTotal > 0) {
                 hasData = true
                 val monthLabel = sdf.format(Date(startOfMonth))
@@ -160,6 +159,20 @@ class SalesDashboardActivity : AppCompatActivity() {
         }
         if (!hasData) {
             addText(binding.layoutMonthlySales, "Aucune vente cette année")
+        }
+    }
+
+    private fun showSkeleton() {
+        binding.skeleton.root.apply {
+            visibility = View.VISIBLE
+            startShimmer()
+        }
+    }
+
+    private fun hideSkeleton() {
+        binding.skeleton.root.apply {
+            stopShimmer()
+            visibility = View.GONE
         }
     }
 

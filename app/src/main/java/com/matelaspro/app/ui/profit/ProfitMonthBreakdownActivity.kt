@@ -1,6 +1,5 @@
 package com.matelaspro.app.ui.profit
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -11,10 +10,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
+import com.matelaspro.app.service.SessionManager
 import com.matelaspro.app.util.FormatUtil
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -24,8 +22,7 @@ class ProfitMonthBreakdownActivity : AppCompatActivity() {
 
     private lateinit var binding: com.matelaspro.app.databinding.ActivityProfitMonthBreakdownBinding
     private lateinit var app: MatelasProApp
-    private var currentUserId: Long = 0
-    private var isAdmin: Boolean = false
+    private var currentUserId: String = ""
     private var monthStart: Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,9 +33,7 @@ class ProfitMonthBreakdownActivity : AppCompatActivity() {
         monthStart = intent.getLongExtra("monthStart", 0)
         if (monthStart == 0L) { finish(); return }
 
-        val loginPrefs = getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
-        currentUserId = intent.getLongExtra("selectedUserId", loginPrefs.getLong("currentUserId", 0))
-        isAdmin = loginPrefs.getBoolean("isAdmin", false)
+        currentUserId = intent.getStringExtra("selectedUserId") ?: SessionManager.currentUserId
 
         app = application as MatelasProApp
 
@@ -51,21 +46,21 @@ class ProfitMonthBreakdownActivity : AppCompatActivity() {
 
     private fun loadMonthProfit() {
         lifecycleScope.launch {
-            val allSales = withContext(Dispatchers.IO) { app.saleRepository.getAllSalesList() }
-            val filtered = if (currentUserId == 0L) allSales else allSales.filter { it.userId == currentUserId }
+            val allSales = app.firestoreService.getAllSales()
+            val filtered = if (currentUserId == "") allSales else allSales.filter { it.userId == currentUserId }
 
             val cal = Calendar.getInstance()
             cal.timeInMillis = monthStart
             cal.add(Calendar.MONTH, 1)
             val monthEnd = cal.timeInMillis
 
-            val monthSales = filtered.filter { it.saleDate >= monthStart && it.saleDate < monthEnd }
+            val monthSales = filtered.filter { (it.saleDate?.toDate()?.time ?: 0L) >= monthStart && (it.saleDate?.toDate()?.time ?: 0L) < monthEnd }
 
             val totalProfit = monthSales.sumOf { it.profit }
             binding.textMonthTotal.text = FormatUtil.montant(totalProfit)
 
             val sdfDay = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE)
-            val byDay = monthSales.groupBy { sdfDay.format(Date(it.saleDate)) }
+            val byDay = monthSales.groupBy { sdfDay.format(Date(it.saleDate?.toDate()?.time ?: 0L)) }
                 .mapValues { (_, list) -> list.sumOf { it.profit } }
                 .entries.sortedByDescending { it.key }
 

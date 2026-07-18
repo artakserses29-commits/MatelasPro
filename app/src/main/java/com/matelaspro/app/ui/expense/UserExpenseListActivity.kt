@@ -13,7 +13,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
-import com.matelaspro.app.data.entity.User
+import com.matelaspro.app.data.firestore.ExpenseFS
+import com.matelaspro.app.data.firestore.UserFS
 import com.matelaspro.app.databinding.ActivityUserExpenseListBinding
 import com.matelaspro.app.util.FormatUtil
 import kotlinx.coroutines.launch
@@ -36,8 +37,8 @@ class UserExpenseListActivity : AppCompatActivity() {
 
     private fun loadUsers() {
         lifecycleScope.launch {
-            val users = app.userRepository.getAllUsersList()
-            val allExpenses = app.expenseRepository.allExpenses.value ?: emptyList()
+            val users = app.firestoreService.getAllUsers()
+            val allExpenses = app.firestoreService.getAllExpenses()
             val byUser = allExpenses.groupBy { it.userId }
 
             val items = users.filter { byUser.containsKey(it.id) }
@@ -52,9 +53,9 @@ class UserExpenseListActivity : AppCompatActivity() {
     }
 
     private class UserExpenseAdapter(
-        private val users: List<User>,
-        private val byUser: Map<Long, List<com.matelaspro.app.data.entity.Expense>>,
-        private val onClick: (User) -> Unit
+        private val users: List<UserFS>,
+        private val byUser: Map<String, List<ExpenseFS>>,
+        private val onClick: (UserFS) -> Unit
     ) : RecyclerView.Adapter<UserExpenseAdapter.ViewHolder>() {
 
         class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {

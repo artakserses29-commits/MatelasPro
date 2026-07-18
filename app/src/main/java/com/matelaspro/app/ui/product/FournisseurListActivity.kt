@@ -11,14 +11,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.matelaspro.app.MatelasProApp
-import com.matelaspro.app.data.entity.Fournisseur
+import com.matelaspro.app.data.firestore.FournisseurFS
 import com.matelaspro.app.databinding.ActivityFournisseurListBinding
 import com.matelaspro.app.databinding.ItemFournisseurBinding
 import com.matelaspro.app.util.FormatUtil
 import kotlinx.coroutines.launch
 
 data class FournisseurWithTotals(
-    val fournisseur: Fournisseur,
+    val fournisseur: FournisseurFS,
     val totalADevoir: Double,
     val montantVerse: Double,
     val reste: Double
@@ -48,26 +48,44 @@ class FournisseurListActivity : AppCompatActivity() {
         )
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
+        showSkeleton()
 
-        app.fournisseurRepository.allFournisseurs.observe(this) { fournisseurs ->
-            computeAndDisplay(fournisseurs)
+        lifecycleScope.launch {
+            app.firestoreService.allFournisseursFlow().collect { fournisseurs ->
+                computeAndDisplay(fournisseurs)
+            }
         }
     }
 
-    private fun computeAndDisplay(fournisseurs: List<Fournisseur>) {
+    private fun computeAndDisplay(fournisseurs: List<FournisseurFS>) {
         lifecycleScope.launch {
-            val allCredits = app.creditEntryRepository.getAll()
+            val allCredits = app.firestoreService.getAllCreditEntries()
             val activeCredits = allCredits.filter { it.quantity > 0 && !it.isOverridden }
             val list = fournisseurs.map { f ->
                 val totalADevoir = activeCredits
                     .filter { it.fournisseur == f.name }
                     .sumOf { it.sellingPrice * it.quantity }
-                val montantVerse = app.fournisseurRepository.getTotalPayeByFournisseurId(f.id)
+                val montantVerse = app.firestoreService.getTotalPayeByFournisseur(f.id)
                 FournisseurWithTotals(f, totalADevoir, montantVerse, totalADevoir - montantVerse)
             }
             adapter.submitList(list)
             binding.textEmptyState.visibility = if (list.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
             binding.recyclerView.visibility = if (list.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+            hideSkeleton()
+        }
+    }
+
+    private fun showSkeleton() {
+        binding.skeleton.root.apply {
+            visibility = android.view.View.VISIBLE
+            startShimmer()
+        }
+    }
+
+    private fun hideSkeleton() {
+        binding.skeleton.root.apply {
+            stopShimmer()
+            visibility = android.view.View.GONE
         }
     }
 
@@ -80,16 +98,33 @@ class FournisseurListActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Nouveau fournisseur")
             .setView(ll)
-            .setPositiveButton("Ajouter") { _, _ ->
-                val name = editName.text.toString().trim()
-                if (name.isEmpty()) { Toast.makeText(this, "Nom requis", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
-                lifecycleScope.launch { app.fournisseurRepository.insert(name) }
-            }
+            .setPositiveButton("Ajouter", null)
             .setNegativeButton("Annuler", null)
-            .show()
+            .create().apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val name = editName.text.toString().trim()
+                        if (name.isEmpty()) {
+                            editName.error = "Le nom du fournisseur est requis"
+                            editName.requestFocus()
+                            return@setOnClickListener
+                        }
+                        lifecycleScope.launch {
+                            try {
+                                app.firestoreService.setFournisseur(null, FournisseurFS(name = name))
+                                Toast.makeText(this@FournisseurListActivity, "Fournisseur '$name' ajouté", Toast.LENGTH_SHORT).show()
+                                dismiss()
+                            } catch (e: Exception) {
+                                editName.error = "Erreur lors de l'ajout"
+                            }
+                        }
+                    }
+                }
+                show()
+            }
     }
 
-    private fun showEditDialog(fournisseur: Fournisseur) {
+    private fun showEditDialog(fournisseur: FournisseurFS) {
         val editName = EditText(this).apply {
             setText(fournisseur.name)
             hint = "Nom du fournisseur"
@@ -101,24 +136,39 @@ class FournisseurListActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Modifier le fournisseur")
             .setView(ll)
-            .setPositiveButton("Enregistrer") { _, _ ->
-                val name = editName.text.toString().trim()
-                if (name.isEmpty()) { Toast.makeText(this, "Nom requis", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
-                lifecycleScope.launch {
-                    app.fournisseurRepository.update(fournisseur.copy(name = name))
-                }
-            }
+            .setPositiveButton("Enregistrer", null)
             .setNegativeButton("Annuler", null)
-            .show()
+            .create().apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val name = editName.text.toString().trim()
+                        if (name.isEmpty()) {
+                            editName.error = "Le nom du fournisseur est requis"
+                            editName.requestFocus()
+                            return@setOnClickListener
+                        }
+                        lifecycleScope.launch {
+                            try {
+                                app.firestoreService.setFournisseur(fournisseur.id, fournisseur.copy(name = name))
+                                Toast.makeText(this@FournisseurListActivity, "Fournisseur modifié", Toast.LENGTH_SHORT).show()
+                                dismiss()
+                            } catch (e: Exception) {
+                                editName.error = "Erreur lors de la modification"
+                            }
+                        }
+                    }
+                }
+                show()
+            }
     }
 
-    private fun deleteFournisseur(fournisseur: Fournisseur) {
+    private fun deleteFournisseur(fournisseur: FournisseurFS) {
         AlertDialog.Builder(this)
             .setTitle("Supprimer le fournisseur")
             .setMessage("Voulez-vous vraiment supprimer ${fournisseur.name} ?")
             .setPositiveButton("Supprimer") { _, _ ->
                 lifecycleScope.launch {
-                    app.fournisseurRepository.delete(fournisseur)
+                    app.firestoreService.deleteFournisseur(fournisseur.id)
                     Toast.makeText(this@FournisseurListActivity, "Fournisseur supprimé", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -128,9 +178,9 @@ class FournisseurListActivity : AppCompatActivity() {
 }
 
 class FournisseurAdapter(
-    private val onClick: (Fournisseur) -> Unit,
-    private val onEdit: (Fournisseur) -> Unit,
-    private val onDelete: (Fournisseur) -> Unit
+    private val onClick: (FournisseurFS) -> Unit,
+    private val onEdit: (FournisseurFS) -> Unit,
+    private val onDelete: (FournisseurFS) -> Unit
 ) : RecyclerView.Adapter<FournisseurAdapter.ViewHolder>() {
     private var items = listOf<FournisseurWithTotals>()
 

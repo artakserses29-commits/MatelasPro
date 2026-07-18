@@ -6,8 +6,8 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.matelaspro.app.data.entity.Product
-import com.matelaspro.app.data.entity.Sale
+import com.matelaspro.app.data.firestore.ProductFS
+import com.matelaspro.app.data.firestore.SaleFS
 import com.matelaspro.app.databinding.ItemSaleBinding
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -16,16 +16,14 @@ import java.util.Date
 import java.util.Locale
 
 class SaleAdapter(
-    private val onCancel: (Sale) -> Unit,
-    productMap: Map<Long, Product> = emptyMap()
-) : ListAdapter<Sale, SaleAdapter.SaleViewHolder>(SaleDiffCallback()) {
-    var productMap: Map<Long, Product> = productMap
+    private val onCancel: (SaleFS) -> Unit,
+    productMap: Map<String, ProductFS> = emptyMap()
+) : ListAdapter<SaleFS, SaleAdapter.SaleViewHolder>(SaleDiffCallback()) {
+    var productMap: Map<String, ProductFS> = productMap
         set(value) { field = value; notifyDataSetChanged() }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SaleViewHolder {
-        val binding = ItemSaleBinding.inflate(
-            LayoutInflater.from(parent.context), parent, false
-        )
+        val binding = ItemSaleBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return SaleViewHolder(binding)
     }
 
@@ -33,16 +31,13 @@ class SaleAdapter(
         holder.bind(getItem(position))
     }
 
-    inner class SaleViewHolder(private val binding: ItemSaleBinding) :
-        RecyclerView.ViewHolder(binding.root) {
-        fun bind(sale: Sale) {
+    inner class SaleViewHolder(private val binding: ItemSaleBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(sale: SaleFS) {
             val now = System.currentTimeMillis()
             val thirtyMinutes = 30 * 60 * 1000L
-            val cancelAllowed = now - sale.saleDate <= thirtyMinutes
+            val cancelAllowed = now - (sale.saleDate?.toDate()?.time ?: 0L) <= thirtyMinutes
 
-            val currencyFormat = NumberFormat.getCurrencyInstance().apply {
-                currency = Currency.getInstance("MGA")
-            }
+            val currencyFormat = NumberFormat.getCurrencyInstance().apply { currency = Currency.getInstance("MGA") }
             val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("fr", "FR"))
             val product = productMap[sale.productId]
             val extra = when {
@@ -58,17 +53,17 @@ class SaleAdapter(
             binding.textPrixVente.text = "PV: ${currencyFormat.format(sale.unitPrice)}"
             binding.textTotal.text = "Total: ${currencyFormat.format(sale.totalAmount)}"
             binding.textProfit.text = "Bénéfice: ${currencyFormat.format(sale.profit)}"
-            binding.textDate.text = dateFormat.format(Date(sale.saleDate))
+            binding.textDate.text = dateFormat.format(Date(sale.saleDate?.toDate()?.time ?: 0L))
             binding.btnCancel.visibility = if (cancelAllowed) View.VISIBLE else View.GONE
             binding.btnCancel.setOnClickListener { onCancel(sale) }
         }
     }
 
-    class SaleDiffCallback : DiffUtil.ItemCallback<Sale>() {
-        override fun areItemsTheSame(oldItem: Sale, newItem: Sale): Boolean =
+    class SaleDiffCallback : DiffUtil.ItemCallback<SaleFS>() {
+        override fun areItemsTheSame(oldItem: SaleFS, newItem: SaleFS): Boolean =
             oldItem.id == newItem.id
 
-        override fun areContentsTheSame(oldItem: Sale, newItem: Sale): Boolean =
+        override fun areContentsTheSame(oldItem: SaleFS, newItem: SaleFS): Boolean =
             oldItem == newItem
     }
 }

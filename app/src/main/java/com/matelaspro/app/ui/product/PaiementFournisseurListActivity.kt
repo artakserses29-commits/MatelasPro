@@ -8,8 +8,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.matelaspro.app.MatelasProApp
-import com.matelaspro.app.data.entity.Fournisseur
-import com.matelaspro.app.data.entity.FournisseurPaiement
+import com.matelaspro.app.data.firestore.FournisseurFS
+import com.matelaspro.app.data.firestore.FournisseurPaiementFS
 import com.matelaspro.app.databinding.ActivityPaiementFournisseurListBinding
 import com.matelaspro.app.databinding.ItemPaiementFournisseurBinding
 import com.matelaspro.app.util.FormatUtil
@@ -22,7 +22,7 @@ class PaiementFournisseurListActivity : AppCompatActivity() {
     private lateinit var binding: ActivityPaiementFournisseurListBinding
     private lateinit var app: MatelasProApp
     private lateinit var adapter: PaiementGlobalAdapter
-    private var allPaiements = listOf<FournisseurPaiement>()
+    private var allPaiements = listOf<FournisseurPaiementFS>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,16 +35,15 @@ class PaiementFournisseurListActivity : AppCompatActivity() {
         adapter = PaiementGlobalAdapter()
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
+        showSkeleton()
 
-        app.fournisseurRepository.allFournisseurs.observe(this) { fournisseurs ->
-            adapter.setFournisseurMap(fournisseurs.associateBy { it.id })
+        lifecycleScope.launch {
+            app.firestoreService.allFournisseursFlow().collect { fournisseurs ->
+                adapter.setFournisseurMap(fournisseurs.associateBy { it.id })
+            }
         }
 
-        app.fournisseurRepository.allPaiements.observe(this) { paiements ->
-            allPaiements = paiements
-            adapter.submitList(paiements)
-            updateEmptyState(paiements)
-        }
+        loadPaiements()
 
         binding.editSearchDate.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -55,6 +54,35 @@ class PaiementFournisseurListActivity : AppCompatActivity() {
         })
     }
 
+    override fun onResume() {
+        super.onResume()
+        loadPaiements()
+    }
+
+    private fun loadPaiements() {
+        lifecycleScope.launch {
+            val paiements = app.firestoreService.getAllPaiements()
+            allPaiements = paiements
+            adapter.submitList(paiements)
+            updateEmptyState(paiements)
+            hideSkeleton()
+        }
+    }
+
+    private fun showSkeleton() {
+        binding.skeleton.root.apply {
+            visibility = android.view.View.VISIBLE
+            startShimmer()
+        }
+    }
+
+    private fun hideSkeleton() {
+        binding.skeleton.root.apply {
+            stopShimmer()
+            visibility = android.view.View.GONE
+        }
+    }
+
     private fun filterPaiements(query: String) {
         if (query.isBlank()) {
             adapter.submitList(allPaiements)
@@ -63,26 +91,26 @@ class PaiementFournisseurListActivity : AppCompatActivity() {
         }
         val filtered = allPaiements.filter { p ->
             val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-            val dateStr = sdf.format(Date(p.createdAt))
+            val dateStr = sdf.format(Date(p.createdAt?.toDate()?.time ?: 0L))
             dateStr.contains(query)
         }
         adapter.submitList(filtered)
         updateEmptyState(filtered)
     }
 
-    private fun updateEmptyState(list: List<FournisseurPaiement>) {
+    private fun updateEmptyState(list: List<FournisseurPaiementFS>) {
         binding.textEmptyState.visibility = if (list.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
         binding.recyclerView.visibility = if (list.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
     }
 }
 
 class PaiementGlobalAdapter : RecyclerView.Adapter<PaiementGlobalAdapter.ViewHolder>() {
-    private var items = listOf<FournisseurPaiement>()
-    private var fournisseurMap = mapOf<Long, Fournisseur>()
+    private var items = listOf<FournisseurPaiementFS>()
+    private var fournisseurMap = mapOf<String, FournisseurFS>()
 
-    fun setFournisseurMap(map: Map<Long, Fournisseur>) { fournisseurMap = map; notifyDataSetChanged() }
+    fun setFournisseurMap(map: Map<String, FournisseurFS>) { fournisseurMap = map; notifyDataSetChanged() }
 
-    fun submitList(list: List<FournisseurPaiement>) {
+    fun submitList(list: List<FournisseurPaiementFS>) {
         items = list
         notifyDataSetChanged()
     }
@@ -100,7 +128,7 @@ class PaiementGlobalAdapter : RecyclerView.Adapter<PaiementGlobalAdapter.ViewHol
         val f = fournisseurMap[p.fournisseurId]
         holder.binding.textFournisseurName.text = f?.name ?: "?"
         holder.binding.textMontant.text = FormatUtil.montant(p.montant)
-        holder.binding.textDate.text = sdf.format(Date(p.createdAt))
+        holder.binding.textDate.text = sdf.format(Date(p.createdAt?.toDate()?.time ?: 0L))
     }
 
     class ViewHolder(val binding: ItemPaiementFournisseurBinding) : RecyclerView.ViewHolder(binding.root)

@@ -1,6 +1,5 @@
 package com.matelaspro.app.ui.sale
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -11,10 +10,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
+import com.matelaspro.app.service.SessionManager
 import com.matelaspro.app.util.FormatUtil
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -24,7 +22,7 @@ class SaleMonthBreakdownActivity : AppCompatActivity() {
 
     private lateinit var binding: com.matelaspro.app.databinding.ActivitySaleMonthBreakdownBinding
     private lateinit var app: MatelasProApp
-    private var currentUserId: Long = 0
+    private var currentUserId: String = ""
     private var monthStart: Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,8 +33,7 @@ class SaleMonthBreakdownActivity : AppCompatActivity() {
         monthStart = intent.getLongExtra("monthStart", 0)
         if (monthStart == 0L) { finish(); return }
 
-        val loginPrefs = getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
-        currentUserId = intent.getLongExtra("selectedUserId", loginPrefs.getLong("currentUserId", 0))
+        currentUserId = intent.getStringExtra("selectedUserId") ?: SessionManager.currentUserId
 
         app = application as MatelasProApp
 
@@ -49,21 +46,21 @@ class SaleMonthBreakdownActivity : AppCompatActivity() {
 
     private fun loadMonthSales() {
         lifecycleScope.launch {
-            val allSales = withContext(Dispatchers.IO) { app.saleRepository.getAllSalesList() }
-            val filtered = if (currentUserId == 0L) allSales else allSales.filter { it.userId == currentUserId }
+            val allSales = app.firestoreService.getAllSales()
+            val filtered = if (currentUserId.isEmpty()) allSales else allSales.filter { it.userId == currentUserId }
 
             val cal = Calendar.getInstance()
             cal.timeInMillis = monthStart
             cal.add(Calendar.MONTH, 1)
             val monthEnd = cal.timeInMillis
 
-            val monthSales = filtered.filter { it.saleDate >= monthStart && it.saleDate < monthEnd }
+            val monthSales = filtered.filter { val d = it.saleDate?.toDate()?.time ?: 0L; d >= monthStart && d < monthEnd }
 
             val total = monthSales.sumOf { it.totalAmount }
             binding.textMonthTotal.text = FormatUtil.montant(total)
 
             val sdfDay = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE)
-            val byDay = monthSales.groupBy { sdfDay.format(Date(it.saleDate)) }
+            val byDay = monthSales.groupBy { sdfDay.format(Date(it.saleDate?.toDate()?.time ?: 0L)) }
                 .mapValues { (_, list) -> list.sumOf { it.totalAmount } }
                 .entries.sortedByDescending { it.key }
 

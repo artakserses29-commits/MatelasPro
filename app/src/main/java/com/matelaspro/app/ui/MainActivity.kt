@@ -8,12 +8,10 @@ import android.widget.ArrayAdapter
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import com.matelaspro.app.MainViewModel
 import com.matelaspro.app.MatelasProApp
-import com.matelaspro.app.R
 import com.matelaspro.app.databinding.ActivityMainBinding
+import com.matelaspro.app.service.SessionManager
 import com.matelaspro.app.ui.alu.AluMenuActivity
 import com.matelaspro.app.ui.auth.LoginActivity
 import com.matelaspro.app.ui.auth.UserManagementActivity
@@ -26,19 +24,18 @@ import com.matelaspro.app.ui.stock.UserStockActivity
 import com.matelaspro.app.ui.profit.ProfitDashboardActivity
 import com.matelaspro.app.ui.sale.SaleActivity
 import com.matelaspro.app.ui.sale.SalesDashboardActivity
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
-    private lateinit var viewModel: MainViewModel
     private lateinit var app: MatelasProApp
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val loginPrefs = getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
-        val currentUserId = loginPrefs.getLong("currentUserId", -1)
-        if (currentUserId == -1L) {
+        if (FirebaseAuth.getInstance().currentUser == null) {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
             return
@@ -46,12 +43,9 @@ class MainActivity : AppCompatActivity() {
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        viewModel = ViewModelProvider(this)[MainViewModel::class.java]
         app = application as MatelasProApp
 
-        val isAdmin = loginPrefs.getBoolean("isAdmin", false)
-
-        if (isAdmin) {
+        if (SessionManager.isAdmin) {
             showSoldeInitialIfNeeded()
             binding.cardStock.setOnClickListener {
                 startActivity(Intent(this, ProductActivity::class.java))
@@ -131,9 +125,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnLogout.setOnClickListener {
-            loginPrefs.edit().clear().apply()
-            startActivity(Intent(this, LoginActivity::class.java))
-            finish()
+            AlertDialog.Builder(this)
+                .setTitle("Déconnexion")
+                .setMessage("Voulez-vous vraiment vous déconnecter ?")
+                .setPositiveButton("Oui") { _, _ ->
+                    FirebaseAuth.getInstance().signOut()
+                    SessionManager.logout()
+                    startActivity(Intent(this, LoginActivity::class.java))
+                    finish()
+                }
+                .setNegativeButton("Non", null)
+                .show()
         }
 
         binding.btnDarkMode.setOnClickListener {
@@ -155,15 +157,15 @@ class MainActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(if (isDark) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO)
     }
 
-    private fun showUserSelectionDialog(onUserSelected: (Long) -> Unit) {
+    private fun showUserSelectionDialog(onUserSelected: (String) -> Unit) {
         lifecycleScope.launch {
-            val users = app.userRepository.getAllUsersList()
+            val users = app.firestoreService.getAllUsers()
             val names = mutableListOf("Tout")
             names.addAll(users.map { it.name })
             AlertDialog.Builder(this@MainActivity)
                 .setTitle("Choisir un utilisateur")
                 .setAdapter(ArrayAdapter(this@MainActivity, android.R.layout.simple_list_item_1, names)) { _, which ->
-                    if (which == 0) onUserSelected(0)
+                    if (which == 0) onUserSelected("")
                     else onUserSelected(users[which - 1].id)
                 }
                 .setNegativeButton("Annuler", null)

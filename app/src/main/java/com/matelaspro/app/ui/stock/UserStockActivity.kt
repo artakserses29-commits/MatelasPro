@@ -1,7 +1,7 @@
 package com.matelaspro.app.ui.stock
 
-import android.content.Context
 import android.os.Bundle
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -9,6 +9,7 @@ import androidx.lifecycle.lifecycleScope
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
 import com.matelaspro.app.databinding.ActivityUserStockBinding
+import com.matelaspro.app.service.SessionManager
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -18,7 +19,7 @@ class UserStockActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityUserStockBinding
     private lateinit var app: MatelasProApp
-    private var currentUserId: Long = 0
+    private var currentUserId: String = ""
     private var isAdmin: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,21 +27,20 @@ class UserStockActivity : AppCompatActivity() {
         binding = ActivityUserStockBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val loginPrefs = getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
-        currentUserId = loginPrefs.getLong("currentUserId", 0)
-        isAdmin = loginPrefs.getBoolean("isAdmin", false)
+        currentUserId = SessionManager.currentUserId
+        isAdmin = SessionManager.isAdmin
 
         app = application as MatelasProApp
 
         binding.toolbar.setNavigationOnClickListener { finish() }
-
+        showSkeleton()
         loadStock()
     }
 
     private fun loadStock() {
         lifecycleScope.launch {
-            val userStocks = app.userStockRepository.getByUserId(currentUserId)
-            val products = app.productRepository.getAllProductsSuspend()
+            val userStocks = app.firestoreService.getUserStockByUserId(currentUserId)
+            val products = app.firestoreService.getAllProducts()
 
             binding.layoutStock.removeAllViews()
 
@@ -64,7 +64,7 @@ class UserStockActivity : AppCompatActivity() {
                     }
                     total += us.quantity
                     val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.FRANCE)
-                    val dateStr = sdf.format(Date(us.updatedAt))
+                    val dateStr = sdf.format(Date(us.updatedAt?.toDate()?.time ?: 0L))
                     val row = layoutInflater.inflate(R.layout.item_dashboard_row, null) as LinearLayout
                     row.findViewById<TextView>(R.id.text_row_title).text = "$name$extra"
                     row.findViewById<TextView>(R.id.text_row_subtitle).text = "Qté: ${us.quantity}  |  $dateStr"
@@ -89,6 +89,21 @@ class UserStockActivity : AppCompatActivity() {
                 }
                 binding.layoutStock.addView(tvTotal)
             }
+            hideSkeleton()
+        }
+    }
+
+    private fun showSkeleton() {
+        binding.skeleton.root.apply {
+            visibility = View.VISIBLE
+            startShimmer()
+        }
+    }
+
+    private fun hideSkeleton() {
+        binding.skeleton.root.apply {
+            stopShimmer()
+            visibility = View.GONE
         }
     }
 }

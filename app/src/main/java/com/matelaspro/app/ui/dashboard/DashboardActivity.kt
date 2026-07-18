@@ -9,21 +9,20 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import com.matelaspro.app.MainViewModel
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
-import com.matelaspro.app.data.entity.Expense
-import com.matelaspro.app.data.entity.FournisseurPaiement
-import com.matelaspro.app.data.entity.Sale
+import com.matelaspro.app.data.firestore.ExpenseFS
+import com.matelaspro.app.data.firestore.FournisseurPaiementFS
+import com.matelaspro.app.data.firestore.ProductFS
+import com.matelaspro.app.data.firestore.SaleFS
 import com.matelaspro.app.databinding.ActivityDashboardBinding
+import com.matelaspro.app.service.SessionManager
 import com.matelaspro.app.ui.sale.SaleDayDetailActivity
 import com.matelaspro.app.ui.sale.SaleMonthBreakdownActivity
 import com.matelaspro.app.util.FormatUtil
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -31,10 +30,9 @@ import java.util.Locale
 
 class DashboardActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDashboardBinding
-    private lateinit var viewModel: MainViewModel
     private lateinit var app: MatelasProApp
-    private var currentUserId: Long = 0
-    private var detailUserId: Long = 0
+    private var currentUserId: String = ""
+    private var detailUserId: String = ""
     private var isAdmin: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,13 +40,11 @@ class DashboardActivity : AppCompatActivity() {
         binding = ActivityDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val loginPrefs = getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
-        currentUserId = loginPrefs.getLong("currentUserId", 0)
-        isAdmin = loginPrefs.getBoolean("isAdmin", false)
-        detailUserId = if (isAdmin) 0L else currentUserId
+        currentUserId = SessionManager.currentUserId
+        isAdmin = SessionManager.isAdmin
+        detailUserId = if (isAdmin) "" else currentUserId
 
         app = application as MatelasProApp
-        viewModel = ViewModelProvider(this)[MainViewModel::class.java]
         setupListeners()
         observeData()
 
@@ -80,11 +76,16 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun observeData() {
         if (isAdmin) {
-            viewModel.totalStockValue.observe(this) { value ->
-                binding.textStockValue.text = FormatUtil.montant(value)
+            lifecycleScope.launch {
+                app.firestoreService.productsFlow().collect { products ->
+                    val totalValue = products.sumOf { it.sellingPrice * it.quantity }
+                    binding.textStockValue.text = FormatUtil.montant(totalValue)
+                }
             }
-            viewModel.lowStockProducts.observe(this) { list ->
-                renderLowStock(list)
+            lifecycleScope.launch {
+                app.firestoreService.lowStockFlow().collect { list ->
+                    renderLowStock(list)
+                }
             }
         }
     }
@@ -105,21 +106,21 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun getSales(): List<Sale> {
-        val all = withContext(Dispatchers.IO) { app.saleRepository.getAllSalesList() }
+    private suspend fun getSales(): List<SaleFS> {
+        val all = app.firestoreService.getAllSales()
         return if (isAdmin) all else all.filter { it.userId == currentUserId }
     }
 
-    private suspend fun getExpenses(): List<Expense> {
-        val all = withContext(Dispatchers.IO) { app.expenseRepository.getAllExpensesList() }
+    private suspend fun getExpenses(): List<ExpenseFS> {
+        val all = app.firestoreService.getAllExpenses()
         return if (isAdmin) all else all.filter { it.userId == currentUserId }
     }
 
-    private suspend fun getAllPaiements(): List<FournisseurPaiement> {
-        return app.fournisseurRepository.getAllPaiementsList()
+    private suspend fun getAllPaiements(): List<FournisseurPaiementFS> {
+        return app.firestoreService.getAllPaiements()
     }
 
-    private fun updateToday(sales: List<Sale>, expenses: List<Expense>) {
+    private fun updateToday(sales: List<SaleFS>, expenses: List<ExpenseFS>) {
         val cal = Calendar.getInstance()
         cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
         cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
@@ -128,8 +129,8 @@ class DashboardActivity : AppCompatActivity() {
         cal.set(Calendar.SECOND, 59); cal.set(Calendar.MILLISECOND, 999)
         val endOfDay = cal.timeInMillis
 
-        val daySales = sales.filter { it.saleDate in startOfDay..endOfDay }
-        val dayExpenses = expenses.filter { it.createdAt in startOfDay..endOfDay }
+        val daySales = sales.filter { (it.saleDate?.toDate()?.time ?: 0L) in startOfDay..endOfDay }
+        val dayExpenses = expenses.filter { (it.createdAt?.toDate()?.time ?: 0L) in startOfDay..endOfDay }
 
         val sTotal = daySales.sumOf { it.totalAmount }
         val pTotal = daySales.sumOf { it.profit }
@@ -149,7 +150,7 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateMonth(sales: List<Sale>, expenses: List<Expense>) {
+    private fun updateMonth(sales: List<SaleFS>, expenses: List<ExpenseFS>) {
         val cal = Calendar.getInstance()
         cal.set(Calendar.DAY_OF_MONTH, 1); cal.set(Calendar.HOUR_OF_DAY, 0)
         cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
@@ -157,8 +158,8 @@ class DashboardActivity : AppCompatActivity() {
         cal.add(Calendar.MONTH, 1)
         val startOfNextMonth = cal.timeInMillis
 
-        val monthSales = sales.filter { it.saleDate in startOfMonth until startOfNextMonth }
-        val monthExpenses = expenses.filter { it.createdAt in startOfMonth until startOfNextMonth }
+        val monthSales = sales.filter { (it.saleDate?.toDate()?.time ?: 0L) in startOfMonth until startOfNextMonth }
+        val monthExpenses = expenses.filter { (it.createdAt?.toDate()?.time ?: 0L) in startOfMonth until startOfNextMonth }
 
         val sTotal = monthSales.sumOf { it.totalAmount }
         val pTotal = monthSales.sumOf { it.profit }
@@ -178,7 +179,7 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderDailyBreakdown(sales: List<Sale>, expenses: List<Expense>) {
+    private fun renderDailyBreakdown(sales: List<SaleFS>, expenses: List<ExpenseFS>) {
         binding.layoutLast7Days.removeAllViews()
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE)
         val todayStart = Calendar.getInstance().apply {
@@ -189,8 +190,8 @@ class DashboardActivity : AppCompatActivity() {
         for (i in 0 until 7) {
             val dayStartMs = todayStart - i * 86400000L
             val dayEndMs = dayStartMs + 86400000L
-            val daySales = sales.filter { it.saleDate >= dayStartMs && it.saleDate < dayEndMs }
-            val dayExpenses = expenses.filter { it.createdAt >= dayStartMs && it.createdAt < dayEndMs }
+            val daySales = sales.filter { (it.saleDate?.toDate()?.time ?: 0L) >= dayStartMs && (it.saleDate?.toDate()?.time ?: 0L) < dayEndMs }
+            val dayExpenses = expenses.filter { (it.createdAt?.toDate()?.time ?: 0L) >= dayStartMs && (it.createdAt?.toDate()?.time ?: 0L) < dayEndMs }
             val sTotal = daySales.sumOf { it.totalAmount }
             val pTotal = daySales.sumOf { it.profit }
             val eTotal = dayExpenses.sumOf { it.amount }
@@ -206,7 +207,7 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderMonthlyBreakdown(sales: List<Sale>, expenses: List<Expense>) {
+    private fun renderMonthlyBreakdown(sales: List<SaleFS>, expenses: List<ExpenseFS>) {
         binding.layoutMonthlyBreakdown.removeAllViews()
         val sdf = SimpleDateFormat("MM/yyyy", Locale.FRANCE)
         val currentYear = Calendar.getInstance().get(Calendar.YEAR)
@@ -218,8 +219,8 @@ class DashboardActivity : AppCompatActivity() {
             val startOfMonth = monthCal.timeInMillis
             monthCal.add(Calendar.MONTH, 1)
             val startOfNextMonth = monthCal.timeInMillis
-            val monthSales = sales.filter { it.saleDate >= startOfMonth && it.saleDate < startOfNextMonth }
-            val monthExpenses = expenses.filter { it.createdAt >= startOfMonth && it.createdAt < startOfNextMonth }
+            val monthSales = sales.filter { (it.saleDate?.toDate()?.time ?: 0L) >= startOfMonth && (it.saleDate?.toDate()?.time ?: 0L) < startOfNextMonth }
+            val monthExpenses = expenses.filter { (it.createdAt?.toDate()?.time ?: 0L) >= startOfMonth && (it.createdAt?.toDate()?.time ?: 0L) < startOfNextMonth }
             val sTotal = monthSales.sumOf { it.totalAmount }
             val pTotal = monthSales.sumOf { it.profit }
             val eTotal = monthExpenses.sumOf { it.amount }
@@ -235,7 +236,7 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderYearTotal(sales: List<Sale>, expenses: List<Expense>) {
+    private fun renderYearTotal(sales: List<SaleFS>, expenses: List<ExpenseFS>) {
         val cal = Calendar.getInstance()
         cal.set(Calendar.DAY_OF_YEAR, 1)
         cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
@@ -244,8 +245,8 @@ class DashboardActivity : AppCompatActivity() {
         cal.set(Calendar.DAY_OF_YEAR, 366); cal.add(Calendar.YEAR, 1)
         val yearEnd = cal.timeInMillis
 
-        val yearSales = sales.filter { it.saleDate >= yearStart && it.saleDate < yearEnd }
-        val yearExpenses = expenses.filter { it.createdAt >= yearStart && it.createdAt < yearEnd }
+        val yearSales = sales.filter { (it.saleDate?.toDate()?.time ?: 0L) >= yearStart && (it.saleDate?.toDate()?.time ?: 0L) < yearEnd }
+        val yearExpenses = expenses.filter { (it.createdAt?.toDate()?.time ?: 0L) >= yearStart && (it.createdAt?.toDate()?.time ?: 0L) < yearEnd }
 
         binding.textYearSales.text = FormatUtil.montant(yearSales.sumOf { it.totalAmount })
         binding.textYearProfit.text = FormatUtil.montant(yearSales.sumOf { it.profit })
@@ -255,7 +256,7 @@ class DashboardActivity : AppCompatActivity() {
         )
     }
 
-    private fun renderBalanceActuelle(sales: List<Sale>, expenses: List<Expense>, paiements: List<FournisseurPaiement>) {
+    private fun renderBalanceActuelle(sales: List<SaleFS>, expenses: List<ExpenseFS>, paiements: List<FournisseurPaiementFS>) {
         val prefs = getSharedPreferences("dashboard_prefs", Context.MODE_PRIVATE)
         val soldeInitial = prefs.getFloat("solde_initial", 0f).toDouble()
         val totalSales = sales.sumOf { it.totalAmount }
@@ -268,7 +269,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.textBalanceActuelle.setTextColor(ContextCompat.getColor(this, color))
     }
 
-    private fun renderWeeklyProfit(sales: List<Sale>) {
+    private fun renderWeeklyProfit(sales: List<SaleFS>) {
         val cal = Calendar.getInstance()
         cal.firstDayOfWeek = Calendar.SUNDAY
         cal.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
@@ -280,7 +281,7 @@ class DashboardActivity : AppCompatActivity() {
         cal.set(Calendar.SECOND, 59); cal.set(Calendar.MILLISECOND, 999)
         val weekEnd = cal.timeInMillis
 
-        val weekSales = sales.filter { it.saleDate in weekStart..weekEnd }
+        val weekSales = sales.filter { (it.saleDate?.toDate()?.time ?: 0L) in weekStart..weekEnd }
         val weekProfit = weekSales.sumOf { it.profit }
         val tenth = weekProfit / 10.0
 
@@ -288,7 +289,7 @@ class DashboardActivity : AppCompatActivity() {
         binding.textWeeklyProfitTenth.text = FormatUtil.montant(tenth)
     }
 
-    private fun renderLowStock(list: List<com.matelaspro.app.data.entity.Product>) {
+    private fun renderLowStock(list: List<ProductFS>) {
         binding.layoutLowStock.removeAllViews()
         if (list.isEmpty()) { addText(binding.layoutLowStock, "Aucun produit en stock faible"); return }
         for (item in list) {
@@ -303,15 +304,15 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun loadFournisseurDebt() {
         lifecycleScope.launch {
-            val allEntries = app.creditEntryRepository.getAll()
+            val allEntries = app.firestoreService.getAllCreditEntries()
             val creditMap = mutableMapOf<String, Double>()
             for (e in allEntries) {
                 if (e.quantity > 0 && !e.isOverridden) creditMap[e.fournisseur] = (creditMap[e.fournisseur] ?: 0.0) + e.quantity * e.sellingPrice
             }
-            val allPaiementList = app.fournisseurRepository.getAllPaiementsList()
-            val paiementMap = mutableMapOf<Long, Double>()
+            val allPaiementList = app.firestoreService.getAllPaiements()
+            val paiementMap = mutableMapOf<String, Double>()
             for (p in allPaiementList) paiementMap[p.fournisseurId] = (paiementMap[p.fournisseurId] ?: 0.0) + p.montant
-            val fournisseurs = withContext(Dispatchers.IO) { app.fournisseurRepository.allFournisseurs.value ?: emptyList() }
+            val fournisseurs = app.firestoreService.allFournisseursFlow().first()
 
             binding.layoutFournisseurDebt.removeAllViews()
             val sortedCredits = creditMap.filter { it.value > 0 }.entries.sortedByDescending { it.value }
@@ -329,12 +330,12 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun showAuditLog() {
         lifecycleScope.launch {
-            val logs = withContext(Dispatchers.IO) { app.auditLogRepository.getAllSync() }
+            val logs = app.firestoreService.getAllAuditLogs()
             val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.FRANCE)
             val sb = StringBuilder()
             if (logs.isEmpty()) sb.append("Aucun événement d'audit")
             else for (log in logs.take(50)) {
-                sb.append("[${sdf.format(Date(log.createdAt))}] ${log.action} - ${log.tableName}#${log.recordId}\n")
+                sb.append("[${sdf.format(Date(log.createdAt?.toDate()?.time ?: 0L))}] ${log.action} - ${log.tableName}#${log.recordId}\n")
                 if (log.detail.isNotEmpty()) sb.append("  ${log.detail}\n"); sb.append("\n")
             }
             android.app.AlertDialog.Builder(this@DashboardActivity).setTitle("Journal d'audit").setMessage(sb.toString()).setPositiveButton("OK", null).show()

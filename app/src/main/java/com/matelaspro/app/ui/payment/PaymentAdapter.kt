@@ -5,7 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.matelaspro.app.data.entity.Payment
+import com.matelaspro.app.data.firestore.PaymentFS
 import com.matelaspro.app.databinding.ItemPaymentBinding
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -13,14 +13,10 @@ import java.util.Currency
 import java.util.Date
 import java.util.Locale
 
-class PaymentAdapter(
-    private val onDelete: (Payment) -> Unit
-) : ListAdapter<Payment, PaymentAdapter.PaymentViewHolder>(PaymentDiffCallback()) {
+class PaymentAdapter : ListAdapter<PaymentFS, PaymentAdapter.PaymentViewHolder>(PaymentDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PaymentViewHolder {
-        val binding = ItemPaymentBinding.inflate(
-            LayoutInflater.from(parent.context), parent, false
-        )
+        val binding = ItemPaymentBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return PaymentViewHolder(binding)
     }
 
@@ -28,27 +24,19 @@ class PaymentAdapter(
         holder.bind(getItem(position))
     }
 
-    inner class PaymentViewHolder(private val binding: ItemPaymentBinding) :
-        RecyclerView.ViewHolder(binding.root) {
-        fun bind(payment: Payment) {
-            val currencyFormat = NumberFormat.getCurrencyInstance().apply {
-                currency = Currency.getInstance("MGA")
-            }
+    inner class PaymentViewHolder(private val binding: ItemPaymentBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(payment: PaymentFS) {
+            val currencyFormat = NumberFormat.getCurrencyInstance().apply { currency = Currency.getInstance("MGA") }
             val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("fr", "FR"))
-
-            binding.textPaymentType.text = payment.type
             binding.textAmount.text = currencyFormat.format(payment.amount)
-            binding.textDescription.text = payment.description.ifEmpty { "Aucune description" }
-            binding.textDate.text = dateFormat.format(Date(payment.date))
-            binding.btnDelete.setOnClickListener { onDelete(payment) }
+            binding.textPaymentType.text = payment.type
+            binding.textDescription.text = payment.description.ifEmpty { "Sans description" }
+            binding.textDate.text = dateFormat.format(Date(payment.date?.toDate()?.time ?: 0L))
         }
     }
 
-    class PaymentDiffCallback : DiffUtil.ItemCallback<Payment>() {
-        override fun areItemsTheSame(oldItem: Payment, newItem: Payment): Boolean =
-            oldItem.id == newItem.id
-
-        override fun areContentsTheSame(oldItem: Payment, newItem: Payment): Boolean =
-            oldItem == newItem
+    class PaymentDiffCallback : DiffUtil.ItemCallback<PaymentFS>() {
+        override fun areItemsTheSame(oldItem: PaymentFS, newItem: PaymentFS): Boolean = oldItem.id == newItem.id
+        override fun areContentsTheSame(oldItem: PaymentFS, newItem: PaymentFS): Boolean = oldItem == newItem
     }
 }

@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:name=".MatelasProApp"
         android:allowBackup="true"
@@ -14,6 +16,10 @@
 
         <activity
             android:name=".ui.MainActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".ui.auth.LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -86,10 +92,6 @@
             android:name=".ui.product.FournisseurCreditDetailActivity"
             android:exported="false"
             android:parentActivityName=".ui.product.FournisseurDetailActivity" />
-        <activity
-            android:name=".ui.auth.LoginActivity"
-            android:exported="false"
-            android:parentActivityName=".ui.MainActivity" />
         <activity
             android:name=".ui.auth.UserManagementActivity"
             android:exported="false"

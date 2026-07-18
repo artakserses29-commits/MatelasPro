@@ -1,6 +1,5 @@
 package com.matelaspro.app.ui.stock
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -11,12 +10,14 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.firebase.Timestamp
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
-import com.matelaspro.app.data.entity.Product
-import com.matelaspro.app.data.entity.User
-import com.matelaspro.app.data.entity.UserStock
+import com.matelaspro.app.data.firestore.ProductFS
+import com.matelaspro.app.data.firestore.UserFS
+import com.matelaspro.app.data.firestore.UserStockFS
 import com.matelaspro.app.databinding.ActivityAdminStockMovementBinding
+import com.matelaspro.app.service.SessionManager
 import com.matelaspro.app.util.FormatUtil
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -26,11 +27,11 @@ class AdminStockMovementActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAdminStockMovementBinding
     private lateinit var app: MatelasProApp
-    private var users: List<User> = emptyList()
-    private var products: List<Product> = emptyList()
-    private var selectedUser: User? = null
-    private var selectedProduct: Product? = null
-    private var userStockMap: Map<Long, Int> = emptyMap()
+    private var users: List<UserFS> = emptyList()
+    private var products: List<ProductFS> = emptyList()
+    private var selectedUser: UserFS? = null
+    private var selectedProduct: ProductFS? = null
+    private var userStockMap: Map<String, Int> = emptyMap()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,19 +41,20 @@ class AdminStockMovementActivity : AppCompatActivity() {
         app = application as MatelasProApp
 
         binding.toolbar.setNavigationOnClickListener { finish() }
-
+        showSkeleton()
         loadData()
     }
 
     private fun loadData() {
         lifecycleScope.launch {
-            users = app.userRepository.getAllUsersList().filter { !it.isAdmin }
-            products = app.productRepository.getAllProductsSuspend()
+            users = app.firestoreService.getAllUsers().filter { !it.isAdmin }
+            products = app.firestoreService.getAllProducts()
 
             setupUserSpinner()
             setupProductSpinner()
 
             binding.btnTransfer.setOnClickListener { transferStock() }
+            hideSkeleton()
         }
     }
 
@@ -113,7 +115,7 @@ class AdminStockMovementActivity : AppCompatActivity() {
     private fun loadUserStock() {
         lifecycleScope.launch {
             val userId = selectedUser!!.id
-            val userStocks = app.userStockRepository.getByUserId(userId)
+            val userStocks = app.firestoreService.getUserStockByUserId(userId)
             userStockMap = userStocks.associate { it.productId to it.quantity }
 
             binding.layoutUserStock.removeAllViews()
@@ -146,30 +148,54 @@ class AdminStockMovementActivity : AppCompatActivity() {
         binding.layoutUserStock.addView(divider)
     }
 
+    private fun showSkeleton() {
+        binding.skeleton.root.apply {
+            visibility = android.view.View.VISIBLE
+            startShimmer()
+        }
+    }
+
+    private fun hideSkeleton() {
+        binding.skeleton.root.apply {
+            stopShimmer()
+            visibility = android.view.View.GONE
+        }
+    }
+
     private fun transferStock() {
-        val user = selectedUser ?: run { Toast.makeText(this, "Choisir un utilisateur", Toast.LENGTH_SHORT).show(); return }
-        val product = selectedProduct ?: run { Toast.makeText(this, "Choisir un produit", Toast.LENGTH_SHORT).show(); return }
+        val layoutQuantity = binding.editQuantity.parent as? com.google.android.material.textfield.TextInputLayout
+        layoutQuantity?.error = null
+        val user = selectedUser ?: run { Toast.makeText(this, "Sélectionnez un utilisateur", Toast.LENGTH_SHORT).show(); return }
+        val product = selectedProduct ?: run { Toast.makeText(this, "Sélectionnez un produit", Toast.LENGTH_SHORT).show(); return }
         val qtyText = binding.editQuantity.text.toString().trim()
-        if (qtyText.isEmpty()) { Toast.makeText(this, "Saisir une quantité", Toast.LENGTH_SHORT).show(); return }
+        if (qtyText.isEmpty()) {
+            layoutQuantity?.error = "La quantité est requise"
+            binding.editQuantity.requestFocus(); return
+        }
         val qty = qtyText.toIntOrNull()
-        if (qty == null || qty <= 0) { Toast.makeText(this, "Quantité invalide", Toast.LENGTH_SHORT).show(); return }
-        if (qty > product.quantity) { Toast.makeText(this, "Stock insuffisant (${product.quantity})", Toast.LENGTH_SHORT).show(); return }
+        if (qty == null || qty <= 0) {
+            layoutQuantity?.error = "Quantité invalide"
+            binding.editQuantity.requestFocus(); return
+        }
+        if (qty > product.quantity) {
+            layoutQuantity?.error = "Stock insuffisant (${product.quantity})"
+            binding.editQuantity.requestFocus(); return
+        }
 
         lifecycleScope.launch {
-            val now = System.currentTimeMillis()
-            val existing = app.userStockRepository.getByUserAndProduct(user.id, product.id)
+            val existing = app.firestoreService.getUserStock(user.id, product.id)
             if (existing != null) {
-                app.userStockRepository.upsert(existing.copy(quantity = existing.quantity + qty, updatedAt = now))
+                app.firestoreService.setUserStock(existing.id, existing.copy(quantity = existing.quantity + qty, updatedAt = Timestamp.now()))
             } else {
-                app.userStockRepository.upsert(com.matelaspro.app.data.entity.UserStock(userId = user.id, productId = product.id, quantity = qty, updatedAt = now))
+                app.firestoreService.setUserStock(null, UserStockFS(userId = user.id, productId = product.id, quantity = qty, updatedAt = Timestamp.now()))
             }
-            app.productRepository.update(product.copy(quantity = product.quantity - qty))
+            app.firestoreService.setProduct(product.id, product.copy(quantity = product.quantity - qty))
 
             Toast.makeText(this@AdminStockMovementActivity, "$qty ${product.name} transféré à ${user.name}", Toast.LENGTH_SHORT).show()
             binding.editQuantity.setText("")
             loadUserStock()
 
-            val updatedProduct = app.productRepository.getProductById(product.id)
+            val updatedProduct = app.firestoreService.getProductById(product.id)
             if (updatedProduct != null) {
                 val idx = products.indexOfFirst { it.id == product.id }
                 if (idx >= 0) products = products.toMutableList().apply { set(idx, updatedProduct) }

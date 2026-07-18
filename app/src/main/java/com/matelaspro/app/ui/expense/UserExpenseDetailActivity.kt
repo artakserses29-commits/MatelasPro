@@ -9,7 +9,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
-import com.matelaspro.app.data.entity.Expense
+import com.matelaspro.app.data.firestore.ExpenseFS
 import com.matelaspro.app.databinding.ActivityUserExpenseDetailBinding
 import com.matelaspro.app.util.FormatUtil
 import kotlinx.coroutines.launch
@@ -27,7 +27,7 @@ class UserExpenseDetailActivity : AppCompatActivity() {
         binding = ActivityUserExpenseDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val userId = intent.getLongExtra("userId", 0)
+        val userId = intent.getStringExtra("userId") ?: ""
         val userName = intent.getStringExtra("userName") ?: "Utilisateur"
 
         binding.toolbar.title = "$userName - Dépenses"
@@ -36,12 +36,12 @@ class UserExpenseDetailActivity : AppCompatActivity() {
         app = application as MatelasProApp
 
         lifecycleScope.launch {
-            val expenses = app.expenseRepository.getExpensesByUser(userId).value ?: emptyList()
+            val expenses = app.firestoreService.getExpensesByUserList(userId)
             renderExpenses(expenses)
         }
     }
 
-    private fun renderExpenses(expenses: List<Expense>) {
+    private fun renderExpenses(expenses: List<ExpenseFS>) {
         val total = expenses.sumOf { it.amount }
         binding.textTotalExpense.text = FormatUtil.montant(total)
 
@@ -51,7 +51,7 @@ class UserExpenseDetailActivity : AppCompatActivity() {
 
         // Par jour
         binding.layoutByDay.removeAllViews()
-        val byDay = expenses.groupBy { sdfDay.format(Date(it.createdAt)) }
+        val byDay = expenses.groupBy { sdfDay.format(Date(it.createdAt?.toDate()?.time ?: 0L)) }
             .mapValues { (_, list) -> list.sumOf { it.amount } }
             .entries.sortedByDescending { it.key }
         if (byDay.isEmpty()) addText(binding.layoutByDay, "Aucune dépense")
@@ -59,7 +59,7 @@ class UserExpenseDetailActivity : AppCompatActivity() {
 
         // Par mois
         binding.layoutByMonth.removeAllViews()
-        val byMonth = expenses.groupBy { sdfMonth.format(Date(it.createdAt)) }
+        val byMonth = expenses.groupBy { sdfMonth.format(Date(it.createdAt?.toDate()?.time ?: 0L)) }
             .mapValues { (_, list) -> list.sumOf { it.amount } }
             .entries.sortedByDescending { it.key }
         if (byMonth.isEmpty()) addText(binding.layoutByMonth, "Aucune dépense")
@@ -68,9 +68,9 @@ class UserExpenseDetailActivity : AppCompatActivity() {
         // Détail
         binding.layoutDetail.removeAllViews()
         if (expenses.isEmpty()) addText(binding.layoutDetail, "Aucune dépense")
-        else for (e in expenses.sortedByDescending { it.createdAt }) {
+        else for (e in expenses.sortedByDescending { it.createdAt?.toDate()?.time ?: 0L }) {
             val desc = if (e.description.isNotEmpty()) e.description else "Sans description"
-            addRow(binding.layoutDetail, desc, "${FormatUtil.montant(e.amount)} - ${sdfFull.format(Date(e.createdAt))}")
+            addRow(binding.layoutDetail, desc, "${FormatUtil.montant(e.amount)} - ${sdfFull.format(Date(e.createdAt?.toDate()?.time ?: 0L))}")
         }
     }
 

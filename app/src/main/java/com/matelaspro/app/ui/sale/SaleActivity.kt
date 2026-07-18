@@ -1,7 +1,6 @@
 package com.matelaspro.app.ui.sale
 
 import android.app.AlertDialog
-import android.content.Context
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -21,10 +20,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.matelaspro.app.MainViewModel
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
-import com.matelaspro.app.data.entity.Product
-import com.matelaspro.app.data.entity.Sale
+import com.matelaspro.app.data.firestore.ProductFS
+import com.matelaspro.app.data.firestore.SaleFS
 import com.matelaspro.app.databinding.ActivitySaleBinding
 import com.matelaspro.app.databinding.DialogSaleBinding
+import com.matelaspro.app.service.SessionManager
 import com.matelaspro.app.util.FormatUtil
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -37,20 +37,15 @@ class SaleActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySaleBinding
     private lateinit var viewModel: MainViewModel
     private lateinit var adapter: SaleAdapter
-    private var productList: List<Product> = emptyList()
-    private var allSalesList: List<Sale> = emptyList()
+    private var productList: List<ProductFS> = emptyList()
+    private var allSalesList: List<SaleFS> = emptyList()
     private var searchQuery: String = ""
     private var filterDateStart: Long = -1L
     private var filterDateEnd: Long = -1L
-    private var currentUserId: Long = 0
-    private var isAdmin: Boolean = false
-    private var userStockProductIds: Set<Long> = emptySet()
-    private var userStockQtys: Map<Long, Int> = emptyMap()
+    private var userStockProductIds: Set<String> = emptySet()
+    private var userStockQtys: Map<String, Int> = emptyMap()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val loginPrefs = getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
-        currentUserId = loginPrefs.getLong("currentUserId", 0)
-        isAdmin = loginPrefs.getBoolean("isAdmin", false)
         super.onCreate(savedInstanceState)
         binding = ActivitySaleBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -123,34 +118,40 @@ class SaleActivity : AppCompatActivity() {
     }
 
     private fun observeData() {
-        viewModel.allSales.observe(this) { sales ->
-            allSalesList = if (isAdmin) sales else sales.filter { it.userId == currentUserId }
-            filterSales()
+        lifecycleScope.launch {
+            val app = application as MatelasProApp
+            if (!SessionManager.isAdmin) {
+                val userStocks = app.firestoreService.getUserStockByUserId(SessionManager.currentUserId)
+                userStockProductIds = userStocks.filter { it.quantity > 0 }.map { it.productId }.toSet()
+                userStockQtys = userStocks.associate { it.productId to it.quantity }
+            }
         }
-        viewModel.allProducts.observe(this) { products ->
-            if (isAdmin) {
-                productList = products
-            } else {
-                lifecycleScope.launch {
-                    val app = application as MatelasProApp
-                    val userStocks = app.userStockRepository.getByUserId(currentUserId)
-                    userStockProductIds = userStocks.filter { it.quantity > 0 }.map { it.productId }.toSet()
-                    userStockQtys = userStocks.associate { it.productId to it.quantity }
+        lifecycleScope.launch {
+            viewModel.allSales.collect { sales ->
+                allSalesList = if (SessionManager.isAdmin) sales else sales.filter { it.userId == SessionManager.currentUserId }
+                filterSales()
+            }
+        }
+        lifecycleScope.launch {
+            viewModel.allProducts.collect { products ->
+                if (SessionManager.isAdmin) {
+                    productList = products
+                } else {
                     productList = products.filter { it.id in userStockProductIds }
                     adapter.productMap = productList.associateBy { it.id }
                 }
+                adapter.productMap = productList.associateBy { it.id }
             }
-            adapter.productMap = productList.associateBy { it.id }
         }
     }
 
     private fun filterSales() {
         var filtered = allSalesList
         if (filterDateStart > 0) {
-            filtered = filtered.filter { it.saleDate >= filterDateStart }
+            filtered = filtered.filter { (it.saleDate?.toDate()?.time ?: 0L) >= filterDateStart }
         }
         if (filterDateEnd > 0) {
-            filtered = filtered.filter { it.saleDate <= filterDateEnd }
+            filtered = filtered.filter { (it.saleDate?.toDate()?.time ?: 0L) <= filterDateEnd }
         }
         val q = searchQuery.lowercase()
         val productMap = productList.associateBy { it.id }
@@ -214,7 +215,7 @@ class SaleActivity : AppCompatActivity() {
             currency = Currency.getInstance("MGA")
         }
 
-        var selectedProduct: Product? = null
+        var selectedProduct: ProductFS? = null
         var productSelected = false
         dialogBinding.spinnerProduct.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
@@ -230,9 +231,7 @@ class SaleActivity : AppCompatActivity() {
                     dialogBinding.textPrixUnitaire.setText("")
                 }
                 if (selectedProduct != null) updateBenefice(dialogBinding, selectedProduct!!)
-                else {
-                    dialogBinding.textBenefice.setText("")
-                }
+                else dialogBinding.textBenefice.setText("")
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
@@ -258,14 +257,14 @@ class SaleActivity : AppCompatActivity() {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 dialogBinding.layoutQuantity.error = null
                 dialogBinding.layoutUnitPrice.error = null
-                dialogBinding.textProductError.visibility = android.view.View.GONE
+                dialogBinding.textProductError.visibility = View.GONE
                 dialogBinding.cardProduct.strokeColor = android.graphics.Color.parseColor("#9E9E9E")
 
                 var hasError = false
 
                 if (!productSelected || selectedProduct == null) {
                     dialogBinding.textProductError.text = "Veuillez choisir un produit"
-                    dialogBinding.textProductError.visibility = android.view.View.VISIBLE
+                    dialogBinding.textProductError.visibility = View.VISIBLE
                     dialogBinding.cardProduct.strokeColor = android.graphics.Color.parseColor("#FF0000")
                     hasError = true
                 }
@@ -279,7 +278,7 @@ class SaleActivity : AppCompatActivity() {
                     dialogBinding.layoutQuantity.error = "Quantité invalide"
                     hasError = true
                 }
-                val availableStock = if (isAdmin) product.quantity else userStockQtys[product.id] ?: 0
+                val availableStock = if (SessionManager.isAdmin) product.quantity else userStockQtys[product.id] ?: 0
                 if (quantity > availableStock) {
                     dialogBinding.layoutQuantity.error = "Stock insuffisant ($availableStock)"
                     hasError = true
@@ -299,14 +298,14 @@ class SaleActivity : AppCompatActivity() {
                     quantity = quantity,
                     unitPrice = unitPrice,
                     purchasePrice = product.sellingPrice,
-                    userId = currentUserId
+                    userId = SessionManager.currentUserId
                 )
-                if (isAdmin) {
+                if (SessionManager.isAdmin) {
                     viewModel.updateProduct(product.copy(quantity = product.quantity - quantity))
                 } else {
                     lifecycleScope.launch {
                         val app = application as MatelasProApp
-                        app.userStockRepository.addQuantity(currentUserId, product.id, -quantity)
+                        app.firestoreService.addUserStockQuantity(SessionManager.currentUserId, product.id, -quantity)
                     }
                 }
                 Toast.makeText(this, getString(R.string.sale_recorded), Toast.LENGTH_SHORT).show()
@@ -316,19 +315,18 @@ class SaleActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun updateBenefice(binding: DialogSaleBinding, product: Product?) {
-        if (product == null) { binding.textBenefice.setText(""); return }
+    private fun updateBenefice(binding: DialogSaleBinding, product: ProductFS) {
         val qty = binding.editQuantity.text.toString().toIntOrNull() ?: 0
         val sellPrice = FormatUtil.parseMontant(binding.editUnitPrice.text.toString())
         val benefice = (sellPrice - product.sellingPrice) * qty
         val format = NumberFormat.getCurrencyInstance().apply { currency = Currency.getInstance("MGA") }
-        binding.textBenefice.setText(format.format(benefice as Double))
+        binding.textBenefice.setText(format.format(benefice))
     }
 
-    private fun cancelSale(sale: Sale) {
+    private fun cancelSale(sale: SaleFS) {
         val now = System.currentTimeMillis()
         val thirtyMinutes = 30 * 60 * 1000L
-        if (now - sale.saleDate > thirtyMinutes) {
+        if (now - (sale.saleDate?.toDate()?.time ?: 0L) > thirtyMinutes) {
             Toast.makeText(this, "Délai d'annulation dépassé (30 min)", Toast.LENGTH_LONG).show()
             return
         }
@@ -338,17 +336,19 @@ class SaleActivity : AppCompatActivity() {
             .setPositiveButton("Annuler la vente") { _, _ ->
                 lifecycleScope.launch {
                     val app = application as MatelasProApp
-                    app.saleRepository.delete(sale)
-                    app.auditLogRepository.insert("CANCEL", "sales", sale.id, sale.productName)
+                    app.firestoreService.deleteSale(sale.id)
+                    app.firestoreService.setAuditLog(null, com.matelaspro.app.data.firestore.AuditLogFS(
+                        action = "CANCEL", tableName = "sales", recordId = sale.id, detail = sale.productName
+                    ))
 
-                    val product = app.productRepository.getProductById(sale.productId)
+                    val product = app.firestoreService.getProductById(sale.productId)
                     if (product != null) {
-                        app.productRepository.insert(product.copy(quantity = product.quantity + sale.quantity))
+                        app.firestoreService.setProduct(product.id, product.copy(quantity = product.quantity + sale.quantity))
                     }
 
-                    val userStock = app.userStockRepository.getByUserAndProduct(sale.userId, sale.productId)
+                    val userStock = app.firestoreService.getUserStock(sale.userId, sale.productId)
                     if (userStock != null) {
-                        app.userStockRepository.upsert(userStock.copy(quantity = userStock.quantity + sale.quantity))
+                        app.firestoreService.setUserStock(userStock.id, userStock.copy(quantity = userStock.quantity + sale.quantity))
                     }
 
                     Toast.makeText(this@SaleActivity, "Vente annulée", Toast.LENGTH_SHORT).show()

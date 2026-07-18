@@ -1,6 +1,5 @@
 package com.matelaspro.app.ui.expense
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -11,7 +10,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
-import com.matelaspro.app.data.entity.Expense
+import com.matelaspro.app.data.firestore.ExpenseFS
+import com.matelaspro.app.service.SessionManager
 import com.matelaspro.app.util.FormatUtil
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -23,8 +23,7 @@ class ExpenseMonthBreakdownActivity : AppCompatActivity() {
 
     private lateinit var binding: com.matelaspro.app.databinding.ActivityExpenseMonthBreakdownBinding
     private lateinit var app: MatelasProApp
-    private var currentUserId: Long = 0
-    private var isAdmin: Boolean = false
+    private var currentUserId: String = ""
     private var monthStart: Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,9 +34,7 @@ class ExpenseMonthBreakdownActivity : AppCompatActivity() {
         monthStart = intent.getLongExtra("monthStart", 0)
         if (monthStart == 0L) { finish(); return }
 
-        val loginPrefs = getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
-        currentUserId = intent.getLongExtra("selectedUserId", loginPrefs.getLong("currentUserId", 0))
-        isAdmin = loginPrefs.getBoolean("isAdmin", false)
+        currentUserId = intent.getStringExtra("selectedUserId") ?: SessionManager.currentUserId
 
         app = application as MatelasProApp
 
@@ -50,21 +47,21 @@ class ExpenseMonthBreakdownActivity : AppCompatActivity() {
 
     private fun loadMonthExpenses() {
         lifecycleScope.launch {
-            val allExpenses = if (currentUserId == 0L) app.expenseRepository.getAllExpensesList()
-            else app.expenseRepository.getExpensesByUserList(currentUserId)
+            val allExpenses = if (currentUserId == "") app.firestoreService.getAllExpenses()
+            else app.firestoreService.getExpensesByUserList(currentUserId)
 
             val cal = Calendar.getInstance()
             cal.timeInMillis = monthStart
             cal.add(Calendar.MONTH, 1)
             val monthEnd = cal.timeInMillis
 
-            val monthExpenses = allExpenses.filter { it.createdAt >= monthStart && it.createdAt < monthEnd }
+            val monthExpenses = allExpenses.filter { (it.createdAt?.toDate()?.time ?: 0L) >= monthStart && (it.createdAt?.toDate()?.time ?: 0L) < monthEnd }
 
             val total = monthExpenses.sumOf { it.amount }
             binding.textMonthTotal.text = FormatUtil.montant(total)
 
             val sdfDay = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE)
-            val byDay = monthExpenses.groupBy { sdfDay.format(Date(it.createdAt)) }
+            val byDay = monthExpenses.groupBy { sdfDay.format(Date(it.createdAt?.toDate()?.time ?: 0L)) }
                 .mapValues { (_, list) -> list.sumOf { it.amount } }
                 .entries.sortedByDescending { it.key }
 

@@ -13,11 +13,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.matelaspro.app.MatelasProApp
-import com.matelaspro.app.data.entity.CreditEntry
-import com.matelaspro.app.data.entity.FournisseurPaiement
+import com.matelaspro.app.data.firestore.CreditEntryFS
+import com.matelaspro.app.data.firestore.FournisseurPaiementFS
 import com.matelaspro.app.databinding.ActivityFournisseurDetailBinding
 import com.matelaspro.app.databinding.ItemFournisseurHistoryBinding
 import com.matelaspro.app.util.FormatUtil
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -41,8 +42,8 @@ data class HistoryItem(
 class FournisseurDetailActivity : AppCompatActivity() {
     private lateinit var binding: ActivityFournisseurDetailBinding
     private lateinit var app: MatelasProApp
-    private var fournisseur: com.matelaspro.app.data.entity.Fournisseur? = null
-    private var fournisseurId: Long = -1L
+    private var fournisseur: com.matelaspro.app.data.firestore.FournisseurFS? = null
+    private var fournisseurId: String = ""
     private var allHistoryItems = listOf<HistoryItem>()
     private var showAllHistory = false
     private val PAGE_SIZE = 10
@@ -53,8 +54,8 @@ class FournisseurDetailActivity : AppCompatActivity() {
         setContentView(binding.root)
         app = application as MatelasProApp
 
-        fournisseurId = intent.getLongExtra("fournisseur_id", -1L)
-        if (fournisseurId == -1L) { finish(); return }
+        fournisseurId = intent.getStringExtra("fournisseur_id") ?: ""
+        if (fournisseurId.isEmpty()) { finish(); return }
 
         binding.btnBack.setOnClickListener { finish() }
 
@@ -78,32 +79,46 @@ class FournisseurDetailActivity : AppCompatActivity() {
     }
 
     private fun loadData() {
+        binding.skeleton.root.apply {
+            visibility = android.view.View.VISIBLE
+            startShimmer()
+        }
         lifecycleScope.launch {
-            fournisseur = app.fournisseurRepository.getById(fournisseurId)
-            val f = fournisseur ?: return@launch
-            binding.textFournisseurName.text = f.name
+            try {
+                fournisseur = app.firestoreService.getFournisseurById(fournisseurId)
+                val f = fournisseur ?: return@launch
+                binding.textFournisseurName.text = f.name
 
-            val creditList = app.creditEntryRepository.getActiveByFournisseur(f.name)
-            val totalADevoir = creditList.sumOf { it.sellingPrice * it.quantity }
-            val montantVerse = app.fournisseurRepository.getTotalPayeByFournisseurId(f.id)
-            val reste = totalADevoir - montantVerse
+                val allCredits = app.firestoreService.getCreditEntriesByFournisseur(f.name)
+                val activeCredits = allCredits.filter { it.quantity > 0 && !it.isOverridden }
+                val totalADevoir = activeCredits.sumOf { it.sellingPrice * it.quantity }
+                val montantVerse = app.firestoreService.getTotalPayeByFournisseur(f.id)
+                val reste = totalADevoir - montantVerse
 
-            binding.textReste.text = FormatUtil.montant(reste)
+                binding.textReste.text = FormatUtil.montant(reste)
+                binding.skeleton.root.apply {
+                    stopShimmer()
+                    visibility = android.view.View.GONE
+                }
 
-            val paiementsRepo = app.fournisseurRepository
-            val paiements = paiementsRepo.getPaiementsByFournisseurId(f.id)
-            paiements.observe(this@FournisseurDetailActivity) { list ->
-                buildHistory(creditList, list)
+                app.firestoreService.getPaiementsByFournisseurFlow(f.id).collect { list ->
+                    buildHistory(activeCredits, list)
+                }
+            } catch (_: CancellationException) {
+                binding.skeleton.root.stopShimmer()
+            } catch (e: Exception) {
+                binding.skeleton.root.stopShimmer()
+                Toast.makeText(this@FournisseurDetailActivity, "Erreur: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    private fun buildHistory(credits: List<CreditEntry>, paiements: List<FournisseurPaiement>) {
+    private fun buildHistory(credits: List<CreditEntryFS>, paiements: List<FournisseurPaiementFS>) {
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE)
         val items = mutableListOf<HistoryItem>()
 
         val creditsByDate = credits.groupBy { p ->
-            val cal = Calendar.getInstance().apply { timeInMillis = p.createdAt }
+            val cal = Calendar.getInstance().apply { timeInMillis = p.createdAt?.toDate()?.time ?: 0L }
             cal.set(Calendar.HOUR_OF_DAY, 0)
             cal.set(Calendar.MINUTE, 0)
             cal.set(Calendar.SECOND, 0)
@@ -131,9 +146,9 @@ class FournisseurDetailActivity : AppCompatActivity() {
         for (p in paiements) {
             items.add(HistoryItem(
                 type = HistoryItem.TYPE_PAIEMENT,
-                dateLabel = sdf.format(Date(p.createdAt)),
+                dateLabel = sdf.format(Date(p.createdAt?.toDate()?.time ?: 0L)),
                 montant = p.montant,
-                timestamp = p.createdAt
+                timestamp = p.createdAt?.toDate()?.time ?: 0L
             ))
         }
 
@@ -173,28 +188,42 @@ class FournisseurDetailActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Nouveau paiement")
             .setView(ll)
-            .setPositiveButton("Valider") { _, _ ->
-                val montant = FormatUtil.parseMontant(editMontant.text.toString())
-                if (montant <= 0) { Toast.makeText(this, "Montant invalide", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
-                lifecycleScope.launch {
-                    val soldeInitial = getSharedPreferences("dashboard_prefs", Context.MODE_PRIVATE).getFloat("solde_initial", 0f).toDouble()
-                    val sales = app.saleRepository.getAllSalesList()
-                    val expenses = app.expenseRepository.getAllExpensesList()
-                    val paiements = app.fournisseurRepository.getAllPaiementsList()
-                    val currentBalance = soldeInitial + sales.sumOf { it.totalAmount } - expenses.sumOf { it.amount } - paiements.sumOf { it.montant }
-                    if (currentBalance - montant < 0) {
-                        Toast.makeText(this@FournisseurDetailActivity,
-                            "Balance insuffisante (${com.matelaspro.app.util.FormatUtil.montant(currentBalance)})", Toast.LENGTH_LONG).show()
-                        return@launch
-                    }
-                    app.fournisseurRepository.insertPaiement(
-                        FournisseurPaiement(fournisseurId = fournisseurId, montant = montant)
-                    )
-                    loadData()
-                }
-            }
+            .setPositiveButton("Valider", null)
             .setNegativeButton("Annuler", null)
-            .show()
+            .create().apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val montant = FormatUtil.parseMontant(editMontant.text.toString())
+                        if (montant <= 0) {
+                            editMontant.error = "Montant invalide"
+                            editMontant.requestFocus()
+                            return@setOnClickListener
+                        }
+                        lifecycleScope.launch {
+                            try {
+                                val soldeInitial = getSharedPreferences("dashboard_prefs", Context.MODE_PRIVATE).getFloat("solde_initial", 0f).toDouble()
+                                val sales = app.firestoreService.getAllSales()
+                                val expenses = app.firestoreService.getAllExpenses()
+                                val paiements = app.firestoreService.getAllPaiements()
+                                val currentBalance = soldeInitial + sales.sumOf { it.totalAmount } - expenses.sumOf { it.amount } - paiements.sumOf { it.montant }
+                                if (currentBalance - montant < 0) {
+                                    editMontant.error = "Balance insuffisante (${com.matelaspro.app.util.FormatUtil.montant(currentBalance)})"
+                                    return@launch
+                                }
+                                app.firestoreService.setPaiement(null,
+                                    FournisseurPaiementFS(fournisseurId = fournisseurId, montant = montant)
+                                )
+                                dismiss()
+                                loadData()
+                            } catch (_: CancellationException) {
+                            } catch (e: Exception) {
+                                editMontant.error = "Erreur lors du paiement"
+                            }
+                        }
+                    }
+                }
+                show()
+            }
     }
 }
 

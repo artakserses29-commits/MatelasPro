@@ -1,14 +1,12 @@
 package com.matelaspro.app.ui.expense
 
-import android.content.Context
 import android.os.Bundle
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.matelaspro.app.MatelasProApp
 import com.matelaspro.app.R
-import com.matelaspro.app.data.entity.Expense
+import com.matelaspro.app.service.SessionManager
 import com.matelaspro.app.util.FormatUtil
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -19,8 +17,7 @@ class ExpenseDayDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: com.matelaspro.app.databinding.ActivityExpenseDayDetailBinding
     private lateinit var app: MatelasProApp
-    private var currentUserId: Long = 0
-    private var isAdmin: Boolean = false
+    private var currentUserId: String = ""
     private var dayStart: Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,10 +28,7 @@ class ExpenseDayDetailActivity : AppCompatActivity() {
         dayStart = intent.getLongExtra("dayStart", 0)
         if (dayStart == 0L) { finish(); return }
 
-        val loginPrefs = getSharedPreferences("login_prefs", Context.MODE_PRIVATE)
-        currentUserId = intent.getLongExtra("selectedUserId", loginPrefs.getLong("currentUserId", 0))
-        isAdmin = loginPrefs.getBoolean("isAdmin", false)
-
+        currentUserId = intent.getStringExtra("selectedUserId") ?: SessionManager.currentUserId
         app = application as MatelasProApp
 
         val sdf = SimpleDateFormat("EEEE dd/MM/yyyy", Locale.FRANCE)
@@ -46,15 +40,15 @@ class ExpenseDayDetailActivity : AppCompatActivity() {
 
     private fun loadDayExpenses() {
         lifecycleScope.launch {
-            val allExpenses = if (currentUserId == 0L) app.expenseRepository.getAllExpensesList()
-            else app.expenseRepository.getExpensesByUserList(currentUserId)
+            val allExpenses = if (currentUserId.isEmpty()) app.firestoreService.getAllExpenses()
+            else app.firestoreService.getExpensesByUserList(currentUserId)
 
             val dayEnd = dayStart + 86400000L
-            val dayExpenses = allExpenses.filter { it.createdAt >= dayStart && it.createdAt < dayEnd }
-                .sortedByDescending { it.createdAt }
+            val dayExpenses = allExpenses.filter { (it.createdAt?.toDate()?.time ?: 0L) >= dayStart && (it.createdAt?.toDate()?.time ?: 0L) < dayEnd }
+                .sortedByDescending { it.createdAt?.toDate()?.time ?: 0L }
 
-            val userMap = if (isAdmin) {
-                app.userRepository.getAllUsersList().associate { it.id to it.name }
+            val userMap = if (SessionManager.isAdmin) {
+                app.firestoreService.getAllUsers().associate { it.id to it.name }
             } else emptyMap()
 
             val total = dayExpenses.sumOf { it.amount }
@@ -75,8 +69,8 @@ class ExpenseDayDetailActivity : AppCompatActivity() {
                     card.findViewById<TextView>(R.id.textAmount).text = FormatUtil.montant(expense.amount)
                     card.findViewById<TextView>(R.id.textDescription).text =
                         if (expense.description.isNotEmpty()) expense.description else "Sans description"
-                    card.findViewById<TextView>(R.id.textTime).text = timeSdf.format(Date(expense.createdAt))
-                    if (isAdmin) {
+                    card.findViewById<TextView>(R.id.textTime).text = timeSdf.format(Date(expense.createdAt?.toDate()?.time ?: 0L))
+                    if (SessionManager.isAdmin) {
                         val tvUser = card.findViewById<TextView>(R.id.textUser)
                         tvUser.text = userMap[expense.userId] ?: "Utilisateur #${expense.userId}"
                         tvUser.visibility = TextView.VISIBLE
