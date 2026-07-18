@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/grey_light">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="vertical">
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:background="@color/primary" android:minHeight="?attr/actionBarSize"
+            app:title="Dépenses" app:titleTextColor="@color/white"
+            app:navigationIcon="@android:drawable/ic_menu_revert"
+            app:navigationIconTint="@color/white">
+            <Button android:id="@+id/btnBack" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
+        </com.google.android.material.appbar.MaterialToolbar>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="12dp">
+            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent"
+                android:layout_height="wrap_content" app:cardElevation="2dp" app:cardCornerRadius="12dp"
+                app:contentPadding="12dp" android:layout_marginBottom="8dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical">
+                    <TextView android:id="@+id/textClientName" android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" android:textSize="16sp"
+                        android:textStyle="bold" android:textColor="?android:textColorPrimary" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginTop="6dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:textSize="13sp"
+                            android:textColor="@color/green" android:text="Payé: " />
+                        <TextView android:id="@+id/textMontantPaye" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="13sp"
+                            android:textColor="@color/green" android:layout_marginEnd="12dp" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="13sp" android:textColor="@color/red" android:text="Reste: " />
+                        <TextView android:id="@+id/textReste" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="13sp"
+                            android:textColor="@color/red" />
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginTop="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:textSize="13sp"
+                            android:textColor="@color/red" android:text="Total Dépenses: " />
+                        <TextView android:id="@+id/textTotalDepenses" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="13sp"
+                            android:textStyle="bold" android:textColor="@color/red" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Liste des dépenses" android:textSize="14sp"
+                android:textStyle="bold" android:textColor="?android:textColorPrimary" />
+        </LinearLayout>
+        <TextView android:id="@+id/textEmptyState" android:layout_width="match_parent"
+            android:layout_height="match_parent" android:gravity="center"
+            android:text="Aucune dépense" android:textSize="16sp"
+            android:textColor="@color/grey_medium" />
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/recyclerView"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:padding="4dp" android:clipToPadding="false" />
+    </LinearLayout>
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAdd" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end" android:layout_margin="16dp"
+        android:src="@android:drawable/ic_input_add" android:contentDescription="Ajouter"
+        android:tint="@color/white" app:backgroundTint="@color/primary" />
+</FrameLayout>

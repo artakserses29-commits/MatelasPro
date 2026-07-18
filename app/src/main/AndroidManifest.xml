@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:name=".MatelasProApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MatelasPro"
+        tools:targetApi="36">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.product.ProductActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+
+        <activity
+            android:name=".ui.sale.SaleActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+
+        <activity
+            android:name=".ui.payment.PaymentActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+
+        <activity
+            android:name=".ui.dashboard.DashboardActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.alu.AluMenuActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.alu.AluProductListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.alu.AluMenuActivity" />
+        <activity
+            android:name=".ui.alu.AluDevisActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.alu.AluMenuActivity" />
+        <activity
+            android:name=".ui.alu.AluNoteActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.alu.AluMenuActivity" />
+        <activity
+            android:name=".ui.alu.AluDevisListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.alu.AluMenuActivity" />
+        <activity
+            android:name=".ui.alu.AluNoteListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.alu.AluMenuActivity" />
+        <activity
+            android:name=".ui.alu.AluNoteDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.alu.AluNoteExpenseActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.product.FournisseurListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.product.FournisseurDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.product.FournisseurListActivity" />
+        <activity
+            android:name=".ui.product.PaiementFournisseurListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.product.FournisseurCreditDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.product.FournisseurDetailActivity" />
+        <activity
+            android:name=".ui.auth.LoginActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.auth.UserManagementActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.expense.ExpenseDashboardActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.expense.UserExpenseListActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.expense.UserExpenseDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.expense.UserExpenseListActivity" />
+        <activity
+            android:name=".ui.expense.ExpenseDayDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.expense.ExpenseDashboardActivity" />
+        <activity
+            android:name=".ui.expense.ExpenseMonthBreakdownActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.expense.ExpenseDashboardActivity" />
+        <activity
+            android:name=".ui.sale.SalesDashboardActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.stock.AdminStockMovementActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.stock.UserStockActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.sale.SaleDayDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.sale.SalesDashboardActivity" />
+        <activity
+            android:name=".ui.sale.SaleMonthBreakdownActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.sale.SalesDashboardActivity" />
+        <activity
+            android:name=".ui.profit.ProfitDashboardActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+        <activity
+            android:name=".ui.profit.ProfitDayDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.profit.ProfitDashboardActivity" />
+        <activity
+            android:name=".ui.profit.ProfitMonthBreakdownActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.profit.ProfitDashboardActivity" />
+    </application>
+</manifest>

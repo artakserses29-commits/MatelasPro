@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/grey_light">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="vertical">
+        <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:background="@color/primary" android:minHeight="?attr/actionBarSize"
+            app:title="Fournisseurs" app:titleTextColor="@color/white"
+            app:navigationIcon="@android:drawable/ic_menu_revert"
+            app:navigationIconTint="@color/white">
+            <Button android:id="@+id/btnBack" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
+        </com.google.android.material.appbar.MaterialToolbar>
+        <TextView android:id="@+id/textEmptyState" android:layout_width="match_parent"
+            android:layout_height="match_parent" android:gravity="center"
+            android:text="Aucun fournisseur" android:textSize="18sp"
+            android:textColor="@color/grey_medium" android:visibility="visible" />
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/recyclerView"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:padding="4dp" android:clipToPadding="false" android:visibility="gone" />
+    </LinearLayout>
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAdd" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end" android:layout_margin="16dp"
+        android:src="@android:drawable/ic_input_add" android:contentDescription="Ajouter"
+        android:tint="@color/white" app:backgroundTint="@color/primary" />
+</FrameLayout>

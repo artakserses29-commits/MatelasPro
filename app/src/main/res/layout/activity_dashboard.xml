@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/grey_light">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primary"
+        android:minHeight="?attr/actionBarSize"
+        app:title="@string/dashboard"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@android:drawable/ic_menu_revert"
+        app:navigationIconTint="@color/white">
+        <android.widget.Button
+            android:id="@+id/btnBack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+    </com.google.android.material.appbar.MaterialToolbar>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Card: Balance actuelle -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardBalanceActuelle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardElevation="3dp"
+                app:cardCornerRadius="10dp"
+                app:cardBackgroundColor="#E8F5E9">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="12dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Balance actuelle" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                    <TextView android:id="@+id/textBalanceActuelle" android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" android:text="0,00 MGA" android:textSize="22sp"
+                        android:textStyle="bold" android:textColor="@color/primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Section: Aujourd'hui -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Aujourd'hui" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/primary_dark" android:layout_marginBottom="4dp" />
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardToday"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:foreground="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardElevation="3dp"
+                app:cardCornerRadius="10dp"
+                app:cardBackgroundColor="#E8F5E9">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="12dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Ventes" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textTodaySales" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/primary" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Bénéfice" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textTodayProfit" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/green" />
+                        </LinearLayout>
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginTop="6dp">
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Dépenses" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textTodayExpense" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/red" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Balance" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textTodayBalance" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/primary" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Section: Ce mois -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Ce mois" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/primary_dark" android:layout_marginBottom="4dp" />
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardMonth"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:foreground="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardElevation="3dp"
+                app:cardCornerRadius="10dp"
+                app:cardBackgroundColor="#E3F2FD">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="12dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Ventes" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textMonthSales" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/primary" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Bénéfice" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textMonthProfit" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/green" />
+                        </LinearLayout>
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginTop="6dp">
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Dépenses" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textMonthExpense" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/red" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Balance" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textMonthBalance" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/primary" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card: Stock value -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardStock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardElevation="3dp"
+                app:cardCornerRadius="10dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:padding="12dp"
+                    android:gravity="center_vertical">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="Valeur du Stock"
+                        android:textSize="14sp" android:textColor="@color/grey_medium" />
+                    <TextView android:id="@+id/textStockValue" android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" android:text="0,00 MGA" android:textSize="18sp"
+                        android:textStyle="bold" android:textColor="@color/primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Section: 1/10 Bénéfice (Cette semaine) -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="1/10 Bénéfice (Cette semaine)" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/primary_dark" android:layout_marginTop="8dp" android:layout_marginBottom="4dp" />
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardElevation="3dp"
+                app:cardCornerRadius="10dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="12dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Bénéfice" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textWeeklyProfit" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/green" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="1/10" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textWeeklyProfitTenth" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/primary" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Section: 7 derniers jours -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="7 derniers jours" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/primary_dark" android:layout_marginTop="8dp" android:layout_marginBottom="4dp" />
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout android:id="@+id/layoutLast7Days" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Chargement..." android:textSize="13sp" android:textColor="@color/grey_medium" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Section: Par mois (cette année) -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Par mois (cette année)" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/primary_dark" android:layout_marginTop="8dp" android:layout_marginBottom="4dp" />
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout android:id="@+id/layoutMonthlyBreakdown" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Chargement..." android:textSize="13sp" android:textColor="@color/grey_medium" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Section: Cette année -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Cette année" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/primary_dark" android:layout_marginTop="8dp" android:layout_marginBottom="4dp" />
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardElevation="3dp"
+                app:cardCornerRadius="10dp"
+                app:cardBackgroundColor="#FFF8E1">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="12dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Ventes" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textYearSales" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/primary" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Bénéfice" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textYearProfit" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/green" />
+                        </LinearLayout>
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginTop="6dp">
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Dépenses" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textYearExpense" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/red" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="wrap_content" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="Balance" android:textSize="11sp" android:textColor="@color/grey_medium" />
+                            <TextView android:id="@+id/textYearBalance" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:text="0" android:textSize="16sp"
+                                android:textStyle="bold" android:textColor="@color/primary" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Section: Alerte stock faible -->
+            <TextView android:id="@+id/labelLowStock" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Stock faible (≤5)" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/red" android:layout_marginTop="8dp" android:layout_marginBottom="4dp" />
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="8dp"
+                app:cardBackgroundColor="#FFF3E0">
+                <LinearLayout android:id="@+id/layoutLowStock" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Chargement..." android:textSize="13sp" android:textColor="@color/grey_medium" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Section: Créances fournisseurs -->
+            <TextView android:id="@+id/labelFournisseurDebt" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Créances fournisseurs" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/primary_dark" android:layout_marginTop="8dp" android:layout_marginBottom="4dp" />
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout android:id="@+id/layoutFournisseurDebt" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Chargement..." android:textSize="13sp" android:textColor="@color/grey_medium" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Button: Audit log -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAuditLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Journal d'audit"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="16dp" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
