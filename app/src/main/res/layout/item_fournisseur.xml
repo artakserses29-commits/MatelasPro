@@ -13,12 +13,12 @@
                 android:textStyle="bold" android:textColor="?android:textColorPrimary" />
             <ImageButton android:id="@+id/btnEdit"
                 android:layout_width="32dp" android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_edit"
+                android:src="@drawable/ic_edit"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Modifier" android:tint="@color/primary" />
             <ImageButton android:id="@+id/btnDelete"
                 android:layout_width="32dp" android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_delete"
+                android:src="@drawable/ic_delete"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Supprimer" android:tint="@color/red" />
         </LinearLayout>

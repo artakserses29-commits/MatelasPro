@@ -15,7 +15,7 @@
                 android:textColor="?android:textColorPrimary"
                 android:maxLines="1" android:ellipsize="end" />
             <ImageButton android:id="@+id/btnDelete" android:layout_width="32dp"
-                android:layout_height="32dp" android:src="@android:drawable/ic_menu_delete"
+                android:layout_height="32dp" android:src="@drawable/ic_delete"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:tint="@color/red" android:contentDescription="Supprimer" />
         </LinearLayout>

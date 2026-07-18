@@ -16,7 +16,7 @@
                 android:textColor="@color/grey_medium" android:layout_marginTop="2dp" />
         </LinearLayout>
         <ImageView android:layout_width="24dp" android:layout_height="24dp"
-            android:src="@android:drawable/ic_menu_recent_history"
+            android:src="@drawable/ic_clock"
             android:tint="@color/green" android:contentDescription="Paiement" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

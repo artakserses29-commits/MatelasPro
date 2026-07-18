@@ -19,11 +19,11 @@
             android:layout_height="wrap_content" android:textSize="15sp"
             android:textStyle="bold" android:textColor="@color/red" android:layout_marginEnd="8dp" />
         <ImageButton android:id="@+id/btnEdit" android:layout_width="32dp"
-            android:layout_height="32dp" android:src="@android:drawable/ic_menu_edit"
+            android:layout_height="32dp" android:src="@drawable/ic_edit"
             android:background="?attr/selectableItemBackgroundBorderless" android:tint="@color/accent"
             android:contentDescription="Modifier" />
         <ImageButton android:id="@+id/btnDelete" android:layout_width="32dp"
-            android:layout_height="32dp" android:src="@android:drawable/ic_menu_delete"
+            android:layout_height="32dp" android:src="@drawable/ic_delete"
             android:background="?attr/selectableItemBackgroundBorderless" android:tint="@color/red"
             android:contentDescription="Supprimer" />
     </LinearLayout>

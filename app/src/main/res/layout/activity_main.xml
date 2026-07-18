@@ -20,7 +20,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_gravity="end"
-            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:src="@drawable/ic_sun"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Mode sombre"
             android:tint="?attr/colorOnPrimary" />
@@ -78,7 +78,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_sort_by_size" android:tint="@color/primary"
+                        android:src="@drawable/ic_package" android:tint="@color/primary"
                         android:contentDescription="Stock" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -109,7 +109,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_sort_by_size" android:tint="@color/primary"
+                        android:src="@drawable/ic_user" android:tint="@color/primary"
                         android:contentDescription="Mon stock" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -139,7 +139,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_myplaces" android:tint="@color/primary"
+                        android:src="@drawable/ic_cart" android:tint="@color/primary"
                         android:contentDescription="Ventes" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -169,7 +169,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_gallery" android:tint="@color/primary"
+                        android:src="@drawable/ic_wrench" android:tint="@color/primary"
                         android:contentDescription="ALU" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -200,7 +200,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_edit" android:tint="@color/primary"
+                        android:src="@drawable/ic_transfer" android:tint="@color/primary"
                         android:contentDescription="Déplacement" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -230,7 +230,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_manage" android:tint="@color/primary"
+                        android:src="@drawable/ic_truck" android:tint="@color/primary"
                         android:contentDescription="Fournisseurs" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -261,7 +261,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_manage" android:tint="@color/primary"
+                        android:src="@drawable/ic_users" android:tint="@color/primary"
                         android:contentDescription="Users" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -292,7 +292,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_compass" android:tint="@color/primary"
+                        android:src="@drawable/ic_chart" android:tint="@color/primary"
                         android:contentDescription="Ventes" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -323,7 +323,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_send" android:tint="@color/primary"
+                        android:src="@drawable/ic_banknotes" android:tint="@color/primary"
                         android:contentDescription="Expenses" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -354,7 +354,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_compass" android:tint="@color/green"
+                        android:src="@drawable/ic_trending_up" android:tint="@color/green"
                         android:contentDescription="Profit" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -384,7 +384,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="20dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="48dp" android:layout_height="48dp"
-                        android:src="@android:drawable/ic_menu_compass" android:tint="@color/primary"
+                        android:src="@drawable/ic_squares" android:tint="@color/primary"
                         android:contentDescription="Dashboard" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="16dp">
@@ -414,7 +414,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:padding="16dp" android:gravity="center_vertical">
                     <ImageView android:layout_width="32dp" android:layout_height="32dp"
-                        android:src="@android:drawable/ic_menu_info_details" android:tint="@color/grey_medium"
+                        android:src="@drawable/ic_info" android:tint="@color/grey_medium"
                         android:contentDescription="Info" />
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:text="À propos" android:textSize="14sp"

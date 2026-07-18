@@ -14,10 +14,10 @@
                 android:textSize="14sp" android:textColor="@color/green" android:layout_marginTop="2dp" />
         </LinearLayout>
         <ImageButton android:id="@+id/btnEdit" android:layout_width="40dp" android:layout_height="40dp"
-            android:src="@android:drawable/ic_menu_edit" android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_edit" android:background="?attr/selectableItemBackgroundBorderless"
             android:tint="@color/primary" android:contentDescription="Edit" />
         <ImageButton android:id="@+id/btnDelete" android:layout_width="40dp" android:layout_height="40dp"
-            android:src="@android:drawable/ic_menu_delete" android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_delete" android:background="?attr/selectableItemBackgroundBorderless"
             android:tint="@color/red" android:contentDescription="Delete" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
