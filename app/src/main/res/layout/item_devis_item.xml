@@ -6,54 +6,62 @@
     app:contentPadding="14dp">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical">
+        <!-- Row 1: Name + Delete -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:gravity="center_vertical">
             <TextView android:id="@+id/textProductName" android:layout_width="0dp"
                 android:layout_height="wrap_content" android:layout_weight="1"
-                android:textSize="16sp" android:textStyle="bold" android:textColor="?android:textColorPrimary"
+                android:textSize="16sp" android:textStyle="bold"
+                android:textColor="?android:textColorPrimary"
                 android:maxLines="1" android:ellipsize="end" />
+            <ImageButton android:id="@+id/btnDelete" android:layout_width="32dp"
+                android:layout_height="32dp" android:src="@android:drawable/ic_menu_delete"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="@color/red" android:contentDescription="Supprimer" />
+        </LinearLayout>
+        <!-- Row 2: Surface + Qty controls -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:textSize="13sp" android:textColor="@color/grey_medium"
-                android:text="PU: " />
-            <TextView android:id="@+id/textPrixUnitaire" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:textSize="13sp"
-                android:textColor="@color/grey_medium" />
+                android:text="Surface " />
+            <EditText android:id="@+id/editSurface" android:layout_width="52dp"
+                android:layout_height="32dp" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="?android:textColorPrimary" android:gravity="center"
+                android:inputType="numberDecimal" android:background="@drawable/edittext_border"
+                android:padding="2dp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="13sp" android:textColor="@color/grey_medium"
+                android:text=" m²" android:layout_marginEnd="8dp" />
+            <ImageButton android:id="@+id/btnMinus" android:layout_width="32dp"
+                android:layout_height="32dp" android:src="@drawable/ic_remove"
+                android:background="@drawable/button_rounded" android:tint="@color/primary"
+                android:contentDescription="-" android:scaleType="centerInside"
+                android:padding="4dp" />
+            <TextView android:id="@+id/textQuantity" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:textSize="18sp"
+                android:textStyle="bold" android:textColor="?android:textColorPrimary"
+                android:gravity="center" android:minWidth="32dp" android:textAlignment="center" />
+            <ImageButton android:id="@+id/btnPlus" android:layout_width="32dp"
+                android:layout_height="32dp" android:src="@drawable/ic_add"
+                android:background="@drawable/button_rounded" android:tint="@color/primary"
+                android:contentDescription="+" android:scaleType="centerInside"
+                android:padding="4dp" />
         </LinearLayout>
+        <!-- Row 3: PU + Total -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:gravity="center_vertical"
             android:layout_marginTop="6dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:textSize="13sp" android:textColor="@color/grey_medium" android:text="Surface " />
-            <TextView android:id="@+id/textSurface" android:layout_width="0dp"
+                android:textSize="14sp" android:textColor="@color/grey_medium"
+                android:text="PU : " />
+            <TextView android:id="@+id/textPrixUnitaire" android:layout_width="0dp"
                 android:layout_height="wrap_content" android:layout_weight="1"
-                android:textSize="13sp" android:textColor="@color/grey_medium" />
-            <TextView android:id="@+id/textPrixTotal" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:textSize="18sp" android:textStyle="bold"
-                android:textColor="@color/green" />
-        </LinearLayout>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:gravity="center_vertical"
-            android:layout_marginTop="10dp">
-            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:gravity="center_vertical">
-                <ImageButton android:id="@+id/btnMinus" android:layout_width="36dp"
-                    android:layout_height="36dp" android:src="@android:drawable/ic_input_delete"
-                    android:background="@drawable/button_rounded" android:tint="@color/primary"
-                    android:contentDescription="-" android:scaleType="centerInside" android:padding="6dp" />
-                <EditText android:id="@+id/editQuantity" android:layout_width="36dp"
-                    android:layout_height="36dp" android:textSize="16sp" android:textStyle="bold"
-                    android:textColor="?android:textColorPrimary" android:gravity="center"
-                    android:inputType="number" android:background="@null" />
-                <ImageButton android:id="@+id/btnPlus" android:layout_width="36dp"
-                    android:layout_height="36dp" android:src="@android:drawable/ic_input_add"
-                    android:background="@drawable/button_rounded" android:tint="@color/primary"
-                    android:contentDescription="+" android:scaleType="centerInside" android:padding="6dp" />
-            </LinearLayout>
-            <Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
-            <ImageButton android:id="@+id/btnDelete" android:layout_width="36dp"
-                android:layout_height="36dp" android:src="@android:drawable/ic_menu_delete"
-                android:background="@drawable/button_rounded" android:tint="@color/red"
-                android:contentDescription="Supprimer" android:scaleType="centerInside" android:padding="6dp" />
+                android:textSize="14sp" android:textColor="@color/grey_medium" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="17sp" android:textStyle="bold"
+                android:textColor="@color/green" android:id="@+id/textPrixTotal" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

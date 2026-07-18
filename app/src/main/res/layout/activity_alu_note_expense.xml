@@ -16,35 +16,52 @@
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical" android:padding="12dp">
             <com.google.android.material.card.MaterialCardView android:layout_width="match_parent"
-                android:layout_height="wrap_content" app:cardElevation="2dp" app:cardCornerRadius="12dp"
-                app:contentPadding="12dp" android:layout_marginBottom="8dp">
+                android:layout_height="wrap_content" app:cardElevation="3dp" app:cardCornerRadius="14dp"
+                app:contentPadding="14dp" android:layout_marginBottom="8dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="vertical">
                     <TextView android:id="@+id/textClientName" android:layout_width="wrap_content"
                         android:layout_height="wrap_content" android:textSize="16sp"
                         android:textStyle="bold" android:textColor="?android:textColorPrimary" />
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="@color/grey_light" android:layout_marginVertical="8dp" />
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:orientation="horizontal" android:layout_marginTop="6dp">
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                            android:layout_weight="1" android:textSize="13sp"
-                            android:textColor="@color/green" android:text="Payé: " />
-                        <TextView android:id="@+id/textMontantPaye" android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" android:textSize="13sp"
-                            android:textColor="@color/green" android:layout_marginEnd="12dp" />
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:textSize="13sp" android:textColor="@color/red" android:text="Reste: " />
-                        <TextView android:id="@+id/textReste" android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" android:textSize="13sp"
-                            android:textColor="@color/red" />
+                        android:orientation="horizontal">
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:textSize="11sp" android:textColor="@color/grey_medium" android:text="Payé" />
+                            <TextView android:id="@+id/textMontantPaye" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:textSize="14sp"
+                                android:textStyle="bold" android:textColor="@color/green" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:textSize="11sp" android:textColor="@color/grey_medium" android:text="Dépenses" />
+                            <TextView android:id="@+id/textTotalDepenses" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:textSize="14sp"
+                                android:textStyle="bold" android:textColor="@color/red" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:textSize="11sp" android:textColor="@color/grey_medium" android:text="Reste" />
+                            <TextView android:id="@+id/textReste" android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" android:textSize="14sp"
+                                android:textStyle="bold" android:textColor="@color/red" />
+                        </LinearLayout>
                     </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="@color/grey_light" android:layout_marginVertical="8dp" />
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:orientation="horizontal" android:layout_marginTop="4dp">
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                            android:layout_weight="1" android:textSize="13sp"
-                            android:textColor="@color/red" android:text="Total Dépenses: " />
-                        <TextView android:id="@+id/textTotalDepenses" android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" android:textSize="13sp"
-                            android:textStyle="bold" android:textColor="@color/red" />
+                        android:orientation="horizontal">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textSize="14sp" android:textColor="?android:textColorPrimary"
+                            android:text="Balance actuelle" android:layout_marginEnd="8dp" />
+                        <TextView android:id="@+id/textBalance" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textSize="16sp"
+                            android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

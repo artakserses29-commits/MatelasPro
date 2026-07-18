@@ -55,7 +55,7 @@ class AluViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveDevis(clientName: String, clientAddress: String, clientPhone: String, items: List<DevisItem>, totalAmount: Double) {
         viewModelScope.launch {
-            val itemsStr = items.joinToString("\n") { "${it.product.id}|${it.product.name}|${it.quantity}|${it.product.surface}|${it.product.prixUnitaire}|${it.prixTotal}" }
+            val itemsStr = items.joinToString("\n") { "${it.product.id}|${it.product.name}|${it.quantity}|${it.surface}|${it.product.prixUnitaire}|${it.prixTotal}" }
             devisRepo.insert(AluDevis(
                 clientName = clientName,
                 clientAddress = clientAddress,
@@ -70,7 +70,7 @@ class AluViewModel(application: Application) : AndroidViewModel(application) {
                     clientName: String? = null, clientAddress: String? = null, clientPhone: String? = null) {
         viewModelScope.launch {
             val existing = devisRepo.getById(devisId) ?: return@launch
-            val itemsStr = items.joinToString("\n") { "${it.product.id}|${it.product.name}|${it.quantity}|${it.product.surface}|${it.product.prixUnitaire}|${it.prixTotal}" }
+            val itemsStr = items.joinToString("\n") { "${it.product.id}|${it.product.name}|${it.quantity}|${it.surface}|${it.product.prixUnitaire}|${it.prixTotal}" }
             devisRepo.update(existing.copy(
                 items = itemsStr, totalAmount = totalAmount,
                 clientName = clientName ?: existing.clientName,

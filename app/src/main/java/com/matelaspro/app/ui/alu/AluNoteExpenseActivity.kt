@@ -9,9 +9,11 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.matelaspro.app.R
 import com.matelaspro.app.data.entity.AluNoteExpense
 import com.matelaspro.app.databinding.ActivityAluNoteExpenseBinding
 import com.matelaspro.app.databinding.ItemAluNoteExpenseBinding
@@ -25,6 +27,8 @@ class AluNoteExpenseActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAluNoteExpenseBinding
     private lateinit var viewModel: AluViewModel
     private var noteId: Long = -1L
+    private var noteMontantPaye: Double = 0.0
+    private var noteResteAPaye: Double = 0.0
     private lateinit var adapter: ExpenseAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +52,8 @@ class AluNoteExpenseActivity : AppCompatActivity() {
 
         viewModel.getNoteById(noteId) { note ->
             if (note != null) {
+                noteMontantPaye = note.montantPaye
+                noteResteAPaye = note.resteAPaye
                 val fmt = NumberFormat.getCurrencyInstance().apply { currency = Currency.getInstance("MGA") }
                 binding.textClientName.text = note.clientName
                 binding.textMontantPaye.text = fmt.format(note.montantPaye)
@@ -57,8 +63,12 @@ class AluNoteExpenseActivity : AppCompatActivity() {
 
         viewModel.getExpensesByNoteId(noteId).observe(this) { expenses ->
             adapter.submitList(expenses)
+            val totalDep = expenses.sumOf { it.montant }
             val fmt = NumberFormat.getCurrencyInstance().apply { currency = Currency.getInstance("MGA") }
-            binding.textTotalDepenses.text = fmt.format(expenses.sumOf { it.montant })
+            binding.textTotalDepenses.text = fmt.format(totalDep)
+            val balance = noteMontantPaye - totalDep
+            binding.textBalance.text = fmt.format(balance)
+            binding.textBalance.setTextColor(ContextCompat.getColor(this, if (balance >= 0) R.color.green else R.color.red))
             binding.textEmptyState.visibility = if (expenses.isEmpty()) View.VISIBLE else View.GONE
             binding.recyclerView.visibility = if (expenses.isEmpty()) View.GONE else View.VISIBLE
         }

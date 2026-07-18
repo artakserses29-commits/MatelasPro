@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -17,6 +18,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.matelaspro.app.data.entity.AluNotePayment
 import com.matelaspro.app.databinding.ActivityAluNoteDetailBinding
+import com.matelaspro.app.databinding.ItemAluNotePaymentBinding
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Currency
@@ -111,16 +113,17 @@ private class PaymentHistoryAdapter : RecyclerView.Adapter<PaymentHistoryAdapter
     override fun getItemCount() = items.size
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val tv = TextView(parent.context).apply { setPadding(16, 8, 16, 8); textSize = 14f }
-        return ViewHolder(tv)
+        val binding = ItemAluNotePaymentBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return ViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val p = items[position]
         val fmt = NumberFormat.getCurrencyInstance().apply { currency = Currency.getInstance("MGA") }
         val df = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("fr", "FR"))
-        holder.tv.text = "${fmt.format(p.montant)}  —  ${df.format(Date(p.createdAt))}"
+        holder.binding.textMontant.text = fmt.format(p.montant)
+        holder.binding.textDate.text = df.format(Date(p.createdAt))
     }
 
-    class ViewHolder(val tv: TextView) : RecyclerView.ViewHolder(tv)
+    class ViewHolder(val binding: ItemAluNotePaymentBinding) : RecyclerView.ViewHolder(binding.root)
 }

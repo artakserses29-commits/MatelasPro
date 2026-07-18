@@ -18,12 +18,20 @@ import com.matelaspro.app.databinding.ItemAluProductDevisBinding
 import com.matelaspro.app.databinding.ItemDevisItemBinding
 import java.text.NumberFormat
 import java.util.Currency
+import kotlin.math.ceil
+import kotlin.math.roundToLong
 
 data class DevisItem(
     val product: AluProduct,
-    var quantity: Int = 1
+    var surface: Double = product.surface
 ) {
-    val prixTotal: Double get() = product.prixUnitaire * quantity
+    val quantity: Int get() = ceil(surface / product.surface).toInt()
+    val montantBrut: Double get() = (surface / product.surface) * product.prixUnitaire
+    val prixTotal: Double get() = roundToNearest(montantBrut)
+}
+
+private fun roundToNearest(value: Double): Double {
+    return (value / 100.0).roundToLong() * 100.0
 }
 
 class AluDevisActivity : AppCompatActivity() {
@@ -55,7 +63,8 @@ class AluDevisActivity : AppCompatActivity() {
         productAdapter = ProductCardAdapter { product ->
             val existing = devisItems.find { it.product.id == product.id }
             if (existing != null) {
-                existing.quantity++
+                existing.surface += product.surface
+                devisAdapter.notifyDataSetChanged()
             } else {
                 devisItems.add(DevisItem(product))
             }
@@ -97,11 +106,10 @@ class AluDevisActivity : AppCompatActivity() {
             if (parts.size >= 6) {
                 val productId = parts[0].toLongOrNull() ?: 0L
                 val name = parts[1]
-                val qty = parts[2].toIntOrNull() ?: 1
                 val surface = parts[3].toDoubleOrNull() ?: 0.0
                 val pu = parts[4].toDoubleOrNull() ?: 0.0
                 val product = AluProduct(id = productId, name = name, surface = surface, prixUnitaire = pu)
-                devisItems.add(DevisItem(product, qty))
+                devisItems.add(DevisItem(product, surface))
             }
         }
         devisAdapter.notifyDataSetChanged()
@@ -198,15 +206,17 @@ class DevisItemsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
-        val format = NumberFormat.getCurrencyInstance().apply { currency = Currency.getInstance("MGA") }
+        val fmt = NumberFormat.getCurrencyInstance().apply { currency = Currency.getInstance("MGA") }
         holder.binding.textProductName.text = item.product.name
-        holder.binding.textSurface.text = "${item.product.surface} m²"
-        holder.binding.textPrixUnitaire.text = format.format(item.product.prixUnitaire)
-        holder.binding.textPrixTotal.text = format.format(item.prixTotal)
-        holder.binding.editQuantity.setText(item.quantity.toString())
-
+        holder.binding.textPrixUnitaire.text = fmt.format(item.product.prixUnitaire)
+        holder.binding.textQuantity.text = item.quantity.toString()
+        holder.binding.textPrixTotal.text = fmt.format(item.prixTotal)
+        holder.binding.editSurface.removeTextChangedListener(holder.surfaceWatcher)
+        holder.binding.editSurface.setText(if (item.surface == item.product.surface) "" else item.surface.toString())
+        holder.binding.editSurface.hint = item.product.surface.toString()
+        holder.binding.editSurface.addTextChangedListener(holder.surfaceWatcher)
         holder.currentItem = item
-        holder.currentFormat = format
+        holder.currentFormat = fmt
     }
 
     override fun onViewAttachedToWindow(holder: ViewHolder) {
@@ -222,41 +232,51 @@ class DevisItemsAdapter(
     inner class ViewHolder(val binding: ItemDevisItemBinding) : RecyclerView.ViewHolder(binding.root) {
         var currentItem: DevisItem? = null
         var currentFormat: NumberFormat? = null
-        private val textWatcher = object : TextWatcher {
+
+        private fun refreshAll() {
+            val item = currentItem ?: return
+            val fmt = currentFormat
+            binding.textQuantity.text = item.quantity.toString()
+            binding.textPrixTotal.text = fmt?.format(item.prixTotal) ?: item.prixTotal.toString()
+            onTotalChanged()
+        }
+
+        val surfaceWatcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 val item = currentItem ?: return
-                val qty = s.toString().toIntOrNull()
-                if (qty != null && qty > 0 && qty != item.quantity) {
-                    item.quantity = qty
-                    binding.textPrixTotal.text = currentFormat?.format(item.prixTotal) ?: item.prixTotal.toString()
-                    onTotalChanged()
+                val input = s.toString().trim()
+                if (input.isEmpty()) {
+                    item.surface = item.product.surface
+                } else {
+                    val v = input.toDoubleOrNull()
+                    if (v != null && v > 0) item.surface = v
                 }
+                refreshAll()
             }
         }
 
         fun attachListeners() {
-            binding.editQuantity.addTextChangedListener(textWatcher)
+            binding.editSurface.addTextChangedListener(surfaceWatcher)
             binding.btnMinus.setOnClickListener {
                 val item = currentItem ?: return@setOnClickListener
-                if (item.quantity > 1) {
-                    item.quantity--
-                    binding.editQuantity.removeTextChangedListener(textWatcher)
-                    binding.editQuantity.setText(item.quantity.toString())
-                    binding.editQuantity.addTextChangedListener(textWatcher)
-                    binding.textPrixTotal.text = currentFormat?.format(item.prixTotal) ?: item.prixTotal.toString()
-                    onTotalChanged()
+                val step = item.product.surface
+                if (item.surface - step >= 0.01) {
+                    item.surface -= step
+                    binding.editSurface.removeTextChangedListener(surfaceWatcher)
+                    binding.editSurface.setText(if (item.surface == item.product.surface) "" else item.surface.toString())
+                    binding.editSurface.addTextChangedListener(surfaceWatcher)
+                    refreshAll()
                 }
             }
             binding.btnPlus.setOnClickListener {
                 val item = currentItem ?: return@setOnClickListener
-                item.quantity++
-                binding.editQuantity.removeTextChangedListener(textWatcher)
-                binding.editQuantity.setText(item.quantity.toString())
-                binding.editQuantity.addTextChangedListener(textWatcher)
-                binding.textPrixTotal.text = currentFormat?.format(item.prixTotal) ?: item.prixTotal.toString()
-                onTotalChanged()
+                item.surface += item.product.surface
+                binding.editSurface.removeTextChangedListener(surfaceWatcher)
+                binding.editSurface.setText(if (item.surface == item.product.surface) "" else item.surface.toString())
+                binding.editSurface.addTextChangedListener(surfaceWatcher)
+                refreshAll()
             }
             binding.btnDelete.setOnClickListener {
                 val pos = bindingAdapterPosition
@@ -277,7 +297,7 @@ class DevisItemsAdapter(
         }
 
         fun detachListeners() {
-            binding.editQuantity.removeTextChangedListener(textWatcher)
+            binding.editSurface.removeTextChangedListener(surfaceWatcher)
         }
     }
 }
