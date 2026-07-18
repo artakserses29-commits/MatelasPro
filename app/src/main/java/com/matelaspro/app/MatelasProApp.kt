@@ -37,6 +37,7 @@ class MatelasProApp : Application() {
         super.onCreate()
         CoroutineScope(Dispatchers.IO).launch {
             seedAdmin()
+            auditLogRepository.cleanupOnStartup()
         }
     }
 

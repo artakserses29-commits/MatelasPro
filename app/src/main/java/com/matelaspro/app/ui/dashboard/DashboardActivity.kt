@@ -329,7 +329,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun showAuditLog() {
         lifecycleScope.launch {
-            val logs = withContext(Dispatchers.IO) { app.auditLogRepository.allLogs.value ?: emptyList() }
+            val logs = withContext(Dispatchers.IO) { app.auditLogRepository.getAllSync() }
             val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.FRANCE)
             val sb = StringBuilder()
             if (logs.isEmpty()) sb.append("Aucun événement d'audit")
