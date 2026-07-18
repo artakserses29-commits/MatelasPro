@@ -138,6 +138,17 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
+        binding.cardAbout.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("À propos")
+                .setMessage("Version : 1.0\n\n" +
+                        "Application de gestion d'entreprise destinée aux matelassiers.\n" +
+                        "Gestion de stock, ventes, dépenses, fournisseurs et ALU.\n\n" +
+                        "Copyright 2026, by Jecolia SR")
+                .setPositiveButton("OK", null)
+                .show()
+        }
+
         binding.btnDarkMode.setOnClickListener {
             val prefs = getSharedPreferences("settings", MODE_PRIVATE)
             val current = prefs.getBoolean("dark_mode", false)
