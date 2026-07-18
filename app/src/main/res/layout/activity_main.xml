@@ -26,6 +26,16 @@
             android:tint="?attr/colorOnPrimary" />
 
         <ImageButton
+            android:id="@+id/btnAbout"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="end"
+            android:src="@drawable/ic_info"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="À propos"
+            android:tint="?attr/colorOnPrimary" />
+
+        <ImageButton
             android:id="@+id/btnLogout"
             android:layout_width="40dp"
             android:layout_height="40dp"
@@ -398,27 +408,6 @@
                     <ImageView android:layout_width="24dp" android:layout_height="24dp"
                         android:src="@android:drawable/ic_media_play" android:tint="@color/grey_medium"
                         android:contentDescription="Go" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- À propos -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardAbout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                app:cardElevation="2dp"
-                app:strokeWidth="0dp"
-                app:cardCornerRadius="12dp"
-                android:foreground="?attr/selectableItemBackground">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:orientation="horizontal" android:padding="16dp" android:gravity="center_vertical">
-                    <ImageView android:layout_width="32dp" android:layout_height="32dp"
-                        android:src="@drawable/ic_info" android:tint="@color/grey_medium"
-                        android:contentDescription="Info" />
-                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                        android:layout_weight="1" android:text="À propos" android:textSize="14sp"
-                        android:textColor="@color/grey_medium" android:layout_marginStart="12dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

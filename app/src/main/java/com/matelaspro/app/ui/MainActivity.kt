@@ -152,7 +152,7 @@ class MainActivity : AppCompatActivity() {
             editor.apply()
         }
 
-        binding.cardAbout.setOnClickListener {
+        binding.btnAbout.setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle("À propos")
                 .setMessage("Version : 1.0\n\n" +
