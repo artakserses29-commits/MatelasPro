@@ -158,7 +158,7 @@ class MainActivity : AppCompatActivity() {
                 .setMessage("Version : 1.0\n\n" +
                         "Application de gestion d'entreprise destinée aux matelassiers.\n" +
                         "Gestion de stock, ventes, dépenses, fournisseurs et ALU.\n\n" +
-                        "Copyright 2026, by Jecolia SR")
+                        "Copyright 2026, Jecolia SR")
                 .setPositiveButton("OK", null)
                 .show()
         }
