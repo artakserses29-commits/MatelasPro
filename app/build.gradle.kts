@@ -54,6 +54,14 @@ android {
         checkReleaseBuilds = false
         abortOnError = false
     }
+
+    applicationVariants.configureEach {
+        outputs.configureEach {
+            if (name.contains("release")) {
+                (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName = "MatelasPro.apk"
+            }
+        }
+    }
 }
 
 dependencies {
