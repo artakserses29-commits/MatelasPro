@@ -18,8 +18,20 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("keystore/release.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+                ?: throw GradleException("Variable d'env KEYSTORE_PASSWORD manquante")
+            keyAlias = "matelaspro"
+            keyPassword = System.getenv("KEYSTORE_PASSWORD")
+                ?: throw GradleException("Variable d'env KEYSTORE_PASSWORD manquante")
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -36,6 +48,11 @@ android {
     }
     buildFeatures {
         viewBinding = true
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 }
 

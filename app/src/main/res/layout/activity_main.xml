@@ -16,16 +16,6 @@
         app:titleTextColor="?attr/colorOnPrimary">
 
         <ImageButton
-            android:id="@+id/btnDarkMode"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="end"
-            android:src="@drawable/ic_sun"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Mode sombre"
-            android:tint="?attr/colorOnPrimary" />
-
-        <ImageButton
             android:id="@+id/btnAbout"
             android:layout_width="40dp"
             android:layout_height="40dp"
@@ -33,6 +23,16 @@
             android:src="@drawable/ic_info"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="À propos"
+            android:tint="?attr/colorOnPrimary" />
+
+        <ImageButton
+            android:id="@+id/btnDarkMode"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="end"
+            android:src="@drawable/ic_sun"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Mode sombre"
             android:tint="?attr/colorOnPrimary" />
 
         <ImageButton
